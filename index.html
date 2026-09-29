@@ -570,7 +570,7 @@ const P2={
   s:null,
   enter(){
     this.s={phase:'brief',streak:0,cleared:false,H:null,vs:null,vc:5.0,shark:{x:-5.5,on:false,hit:false},ball:null,
-      result:null,timer:0,log:[],clock:0,flash:0,splash:[],smoke:[]};
+      result:null,timer:0,log:[],clock:0,flash:0,splash:[],smoke:[],fire:[],puffs:[],debris:[],boom:null,shake:0};
     this.dock(); this.brief();
   },
   brief(){
@@ -588,15 +588,24 @@ const P2={
     const s=this.s; hidePanel();
     s.H = s.H==null ? pick(this.HEIGHTS) : pickNot(this.HEIGHTS,s.H);
     s.vs = s.vs==null ? pick(this.SPEEDS) : pickNot(this.SPEEDS,s.vs);
-    s.shark={x:-5.5,on:false,hit:false}; s.ball=null; s.result=null; s.splash=[]; s.phase='aim'; this.refresh();
+    s.shark={x:-5.5,on:false,hit:false}; s.ball=null; s.result=null; s.splash=[]; s.fire=[]; s.puffs=[]; s.debris=[]; s.boom=null; s.shake=0; s.phase='aim'; this.refresh();
   },
   fire(){ const s=this.s; if(s.phase!=='aim') return; s.phase='approach'; s.shark.on=true; s.vcShot=s.vc; this.refresh(); },
   land(){
     const s=this.s, tf=Math.sqrt(2*s.H/G), landX=s.vcShot*tf, sharkX=s.vs*tf, miss=landX-sharkX, ok=Math.abs(miss)<=this.TOL;
     s.streak = ok ? s.streak+1 : 0; s.shark.hit=ok;
-    for(let i=0;i<18;i++) s.splash.push({x:landX,y:0,vx:(Math.random()-.5)*4,vy:2+Math.random()*5,life:1});
+    if(ok) this.explode(sharkX);
+    else for(let i=0;i<18;i++) s.splash.push({x:landX,y:0,vx:(Math.random()-.5)*4,vy:2+Math.random()*5,life:1});
     s.log.push({H:s.H,vs:s.vs,vc:s.vcShot,miss,ok});
     s.result={tf,landX,sharkX,miss,ok}; s.phase='after'; s.timer=0; this.refresh();
+  },
+  explode(x){
+    const s=this.s, rnd=Math.random; s.shark.gone=true; s.shark.on=false; s.boom={x,t:0}; s.shake=0.4;
+    for(let i=0;i<36;i++){ const a=rnd()*Math.PI, v=3+rnd()*9; s.fire.push({x,y:0.3,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,r:0.12+rnd()*0.22}); }
+    for(let i=0;i<14;i++) s.puffs.push({x:x+(rnd()-.5)*1.6,y:0.4+rnd()*1.6,vx:(rnd()-.5)*1.4,vy:0.8+rnd()*1.6,life:1,r:0.5+rnd()*0.6});
+    for(let i=0;i<10;i++){ const a=0.35+rnd()*(Math.PI-0.7), v=4+rnd()*6;
+      s.debris.push({x,y:0.2,vx:Math.cos(a)*v,vy:Math.sin(a)*v,rot:rnd()*6,vr:(rnd()-.5)*14,sz:0.22+rnd()*0.35,fin:i===0}); }
+    for(let i=0;i<28;i++) s.splash.push({x:x+(rnd()-.5)*1.4,y:0,vx:(rnd()-.5)*5,vy:4+rnd()*7,life:1});
   },
   showResult(){
     const s=this.s, r=s.result; s.phase='result';
@@ -614,7 +623,7 @@ const P2={
         The height only changes <i>how long</i> the fall takes, and the ball and the shark both get that same amount of time.</div>`,
         [{label:state.reflected[1]?'Next mission: Archer Duel →':'✍️ Answer 3 questions → Mission 3',grow:true,fn:()=>afterMission(1)},{label:'Keep practicing',secondary:true,fn:()=>this.next()}]);
     } else {
-      showPanel(`<div class="banner">${r.ok?'<span style="color:var(--good)">🎯 Direct hit! Bonk!</span>':'<span style="color:var(--cpu)">💦 Splash. Missed the shark.</span>'}</div>
+      showPanel(`<div class="banner">${r.ok?'<span style="color:var(--good)">🎯 Direct hit! 💥 KABOOM!</span>':'<span style="color:var(--cpu)">💦 Splash. Missed the shark.</span>'}</div>
         <div class="streak">${pipsHTML(Math.min(s.streak,this.NEED),this.NEED)}<span class="mtxt">Streak ${s.streak} / ${this.NEED}${s.cleared?' · mission already cleared ★':''}</span></div>
         <div class="worked">${w}</div>
         <div class="hintline">The dotted lines connect where the ball and the shark were at the same moments (every 0.1 s).</div>`,
@@ -634,7 +643,13 @@ const P2={
     s.splash.forEach(p=>{ p.x+=p.vx*dt; p.vy-=G*dt; p.y+=p.vy*dt; p.life-=dt*0.9; });
     s.splash=s.splash.filter(p=>p.life>0&&p.y>-0.2);
     s.smoke.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*0.7; }); s.smoke=s.smoke.filter(p=>p.life>0);
-    if(s.phase==='after'){ s.timer+=dt; if(s.timer>1.3) this.showResult(); }
+    s.fire.forEach(p=>{ p.x+=p.vx*dt; p.vy-=G*0.5*dt; p.y+=p.vy*dt; p.life-=dt*1.4; }); s.fire=s.fire.filter(p=>p.life>0);
+    s.puffs.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.r+=dt*0.9; p.life-=dt*0.45; }); s.puffs=s.puffs.filter(p=>p.life>0);
+    s.debris.forEach(p=>{ p.x+=p.vx*dt; p.vy-=G*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt;
+      if(p.y<0){ p.dead=true; for(let i=0;i<5;i++) s.splash.push({x:p.x,y:0,vx:(Math.random()-.5)*2,vy:1.5+Math.random()*2.5,life:0.8}); } });
+    s.debris=s.debris.filter(p=>!p.dead);
+    if(s.boom) s.boom.t+=dt; s.shake=Math.max(0,s.shake-dt);
+    if(s.phase==='after'){ s.timer+=dt; if(s.timer>(s.result&&s.result.ok?1.8:1.3)) this.showResult(); }
   },
   pointer(){}, key(k){ if(k===' ') this.fire(); },
 
@@ -681,6 +696,8 @@ const P2={
     const s=this.s, w=W, h=H;
     const sc=Math.min(h/22.5,w/40), ox=Math.round(Math.min(15.5*sc,w*0.3)), surf=h-2.3*sc;
     const X=x=>ox+x*sc, Y=y=>surf-y*sc;
+    g.fillStyle='#1b2a55'; g.fillRect(0,0,w,h); g.save();
+    if(s.shake>0){ const a=s.shake*10; g.translate((Math.random()-.5)*a,(Math.random()-.5)*a); }
     // sky
     let gr=g.createLinearGradient(0,0,0,surf); gr.addColorStop(0,'#1b2a55'); gr.addColorStop(.7,'#6a4e7a'); gr.addColorStop(1,'#e9a86b');
     g.fillStyle=gr; g.fillRect(0,0,w,surf);
@@ -694,7 +711,7 @@ const P2={
     for(let m=5; X(m)<w; m+=5){ const px=X(m); g.fillStyle='#e04848'; g.fillRect(px-2,surf-7,4,7); g.fillStyle='#fff'; g.fillRect(px-2,surf-4,4,2);
       txt(m+' m',px,h-8,{size:10,color:'rgba(220,235,255,.75)',align:'center'}); }
     // shark (drawn before the hull so it can hide under the ship)
-    this.shark(X(s.shark.x),surf,sc,s.clock,s.shark.hit);
+    if(!s.shark.gone) this.shark(X(s.shark.x),surf,sc,s.clock,false);
     this.ship(X,Y,sc,s);
     // waves
     g.strokeStyle='rgba(200,230,255,.5)'; g.lineWidth=1.5; g.beginPath();
@@ -718,9 +735,20 @@ const P2={
     // muzzle flash / smoke / splash
     if(s.flash>0){ g.fillStyle=`rgba(255,190,80,${s.flash*3})`; dot(X(0.3),Y(s.H),0.7*sc*(1+s.flash*2)); }
     s.smoke.forEach(p=>{ g.fillStyle=`rgba(210,210,210,${p.life*0.35})`; dot(X(p.x),Y(p.y),(1.4-p.life)*0.9*sc); });
+    // explosion: smoke puffs, fireball + shockwave, sparks, shark chunks
+    s.puffs.forEach(p=>{ g.fillStyle=`rgba(90,90,100,${p.life*0.55})`; dot(X(p.x),Y(p.y),p.r*sc); });
+    if(s.boom){ const b=s.boom, bx=X(b.x), by=surf-0.4*sc;
+      if(b.t<0.7){ const k=Math.min(1,b.t/0.22), R=sc*(0.6+2.8*(1-Math.pow(1-k,3))), a=1-b.t/0.7;
+        const fg=g.createRadialGradient(bx,by,0,bx,by,R); fg.addColorStop(0,`rgba(255,255,230,${a})`); fg.addColorStop(.35,`rgba(255,210,90,${a})`);
+        fg.addColorStop(.7,`rgba(255,110,30,${a*0.85})`); fg.addColorStop(1,'rgba(200,40,10,0)'); g.fillStyle=fg; dot(bx,by,R); }
+      if(b.t<0.5){ g.strokeStyle=`rgba(255,240,200,${1-b.t/0.5})`; g.lineWidth=3; g.beginPath(); g.arc(bx,by,sc*(1+11*b.t),0,Math.PI*2); g.stroke(); }
+      if(b.t<1.8) txt('KABOOM! 💥',bx,Y(3.4)-Math.min(b.t,0.3)*30,{size:18,bold:true,color:'#ffd166',align:'center',bg:'rgba(10,16,32,.6)'}); }
+    s.fire.forEach(p=>{ g.fillStyle=`rgba(255,${Math.round(140+110*p.life)},60,${p.life})`; dot(X(p.x),Y(p.y),Math.max(1.5,p.r*sc*p.life)); });
+    s.debris.forEach(p=>{ g.save(); g.translate(X(p.x),Y(p.y)); g.rotate(p.rot); const z=p.sz*sc; g.fillStyle=p.fin?'#5d6f82':'#7f93a8';
+      g.beginPath(); if(p.fin){ g.moveTo(-z,z*0.5); g.lineTo(0,-z*1.2); g.lineTo(z*0.6,z*0.5); } else { g.moveTo(-z,-z*0.4); g.lineTo(z,-z*0.6); g.lineTo(z*0.3,z*0.7); }
+      g.closePath(); g.fill(); g.restore(); });
     s.splash.forEach(p=>{ g.fillStyle=`rgba(220,240,255,${p.life})`; dot(X(p.x),Y(p.y),Math.max(1.5,0.12*sc)); });
-    if(s.result && (s.phase==='after'||s.phase==='result') && s.result.ok)
-      txt('BONK! 💫',X(s.shark.x),Y(2.2),{size:15,bold:true,color:'#ffd166',align:'center'});
+    g.restore();
     // HUD
     txt(`Streak ${s.streak} / ${this.NEED}`,12,16,{size:13,bold:true,color:'#ffd166',bg:'rgba(10,16,32,.7)'});
     if(s.vs!=null) txt(`🦈 Shark speed ${f1(s.vs)} m/s   ·   💣 Cannon speed ${f1(s.phase==='aim'?s.vc:s.vcShot)} m/s`,12,40,{size:12,color:'#eaf0ff',bg:'rgba(10,16,32,.65)'});
