@@ -16,7 +16,7 @@ Missions unlock in order. Finishing one earns its ★ (saved on the device), and
 
 ## How each mission plays
 
-**📦 Warehouse Drop.** The worker climbs to a random shelf (2–16 m drop, never the same twice in a row) while a robot rolls in at a steady 3.0 m/s. Students tap **DROP** (or tap the scene / press Space). A floor ruler shows the robot's distance from the drop line. After each drop you see the fall time, the lead distance that was needed (`v × t`), where they actually let go, and a 0.1 s strobe of the falling box. A miss resets the streak.
+**📦 Warehouse Drop.** The worker climbs to a random shelf (2–16 m drop, never the same twice in a row). The first five shelves are all different and always include one height and its double (2 & 4, 4 & 8, 6 & 12, or 8 & 16 m) so students can compare fall times in their log while a robot rolls in at a steady 3.0 m/s. Students tap **DROP** (or tap the scene / press Space). A floor ruler shows the robot's distance from the drop line. After each drop you see the fall time, the lead distance that was needed (`v × t`), where they actually let go, and a 0.1 s strobe of the falling box. A miss resets the streak.
 
 **🏴‍☠️ Pirate Cannon.** The cannon only fires horizontally, from a random gun deck (3–13 m). Students set only the **launch speed** (0.5 m/s steps). The shark (3–10 m/s, shown) swims out from under the ship, and the cannon fires automatically the instant it passes below. Dotted strobe lines connect ball and shark at the same moments. When the speeds match, the lines are vertical. Height and shark speed both change every shot.
 
