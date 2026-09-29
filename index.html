@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projectile Missions — Drop, Fire, Duel</title>
+<style>
+  :root{
+    --bg:#0f1830; --panel:#16213e; --panel2:#1d2b52; --ink:#eaf0ff;
+    --muted:#9fb0d6; --line:#2c3d6b; --accent:#ffd166;
+    --good:#2fbf57; --bad:#e6294b; --cpu:#ff5a6e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:radial-gradient(1200px 700px at 70% -10%, #1a2a52 0%, var(--bg) 55%);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+  header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#1a2748,#131f3c);flex-wrap:wrap}
+  header h1{font-size:19px;margin:0;letter-spacing:.3px}
+  header .tag{font-size:12px;color:var(--muted)}
+  header .spacer{flex:1}
+  .helpbtn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:7px 12px;font-size:13px;cursor:pointer;touch-action:manipulation}
+  .helpbtn:hover{border-color:var(--accent)}
+  .medals{display:flex;gap:6px}
+  .medal{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:13px;border:2px solid var(--line);background:var(--panel2);color:var(--muted)}
+  .medal.won{border-color:var(--good);background:#153b28;color:#8ff0b6}
+
+  .wrap{max-width:1400px;margin:0 auto;padding:12px 14px 30px}
+
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .tab{flex:1 1 220px;text-align:left;background:var(--panel);border:2px solid var(--line);border-radius:12px;
+    padding:7px 12px;cursor:pointer;transition:.12s;touch-action:manipulation}
+  .tab:hover{border-color:#3a4d7d}
+  .tab.sel{border-color:var(--accent);background:#20315c}
+  .tab.locked{opacity:.5;cursor:not-allowed}
+  .tab.locked:hover{border-color:var(--line)}
+  .tab .n{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .tab .nm{font-weight:700;font-size:15px;margin-top:2px}
+  .tab .eq{font-size:12px;color:var(--muted);margin-top:2px;font-style:italic}
+  .tab .badge{float:right;font-size:12px}
+
+  .stagewrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0a1024}
+  canvas#stage{display:block;width:100%;height:clamp(260px,54vh,520px);touch-action:none;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+
+  .stagebtn{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:none;padding:12px 26px;font-size:18px;
+    box-shadow:0 6px 18px #0008}
+  .stagebtn.show{display:block}
+  @media (max-width:640px){ canvas#stage{height:clamp(240px,72vw,420px)} .tab{flex:1 1 90px;padding:6px 8px} .tab .eq{display:none} .tab .nm{font-size:13px} }
+  .panel{position:absolute;top:12px;right:12px;width:min(440px,calc(100% - 24px));max-height:calc(100% - 24px);
+    overflow:auto;background:rgba(10,17,36,.95);border:1px solid var(--line);border-radius:14px;padding:13px 15px;
+    display:none;box-shadow:0 10px 30px #0009}
+  .panel.show{display:block}
+  .panel.center{left:50%;right:auto;transform:translateX(-50%);width:min(580px,calc(100% - 24px))}
+  .panel.left{left:12px;right:auto}
+  .banner{font-size:18px;font-weight:800;margin:0 0 6px}
+  .ptext{font-size:14px;line-height:1.5;margin:6px 0}
+  .ptips{margin:6px 0;padding-left:20px;font-size:14px;line-height:1.5}
+  .ptips li{margin:3px 0}
+  .muted{color:var(--muted)}
+  .worked{margin-top:8px;font-size:13px;color:var(--muted);background:#0c1428;border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;line-height:1.55}
+  .worked b{color:var(--ink)}
+  .rowbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+  .dock{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:12px}
+  @media (max-width:980px){ .dock{grid-template-columns:1fr 1fr} .dock .card:last-child{grid-column:1 / -1} }
+  @media (max-width:640px){ .dock{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 8px}
+  .goal{font-size:14px;line-height:1.5}
+  .goal b{color:var(--accent)}
+  .givens{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .given{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;min-width:86px}
+  .given .k{font-size:11px;color:var(--muted)}
+  .given .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .streak{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+  .pip{width:16px;height:16px;border-radius:50%;background:var(--panel2);border:1px solid var(--line)}
+  .pip.w{background:var(--good);border-color:var(--good)}
+  .pip.l{background:var(--cpu);border-color:var(--cpu)}
+  .streak .mtxt{font-size:12px;color:var(--muted);margin-left:4px}
+  .hintline{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .status{font-size:13px;margin-top:8px;min-height:1.3em;color:var(--accent);font-weight:600}
+
+  .ctrl{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .ctrl .lab{flex:1;min-width:0}
+  .ctrl .lab .t{font-weight:700}
+  .ctrl .lab .u{font-size:12px;color:var(--muted)}
+  .stepper{display:flex;align-items:center;gap:8px}
+  .stepbtn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--ink);font-size:24px;font-weight:700;cursor:pointer;line-height:1;touch-action:manipulation;
+    user-select:none;-webkit-user-select:none}
+  .stepbtn:active{background:#28407a}
+  .stepbtn:disabled{opacity:.35;cursor:not-allowed}
+  .val{min-width:96px;text-align:center;font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;
+    background:#0c1428;border:1px solid var(--line);border-radius:10px;padding:7px 4px}
+  .val small{font-size:12px;color:var(--muted);font-weight:600}
+
+  .btn{border:none;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;cursor:pointer;
+    color:#0f1830;background:var(--accent);touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  .btn:hover{filter:brightness(1.05)}
+  .btn.secondary{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .btn.secondary:hover{border-color:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+  .btn.big{width:100%;padding:18px 16px;font-size:22px;letter-spacing:.5px}
+  .walkrow{display:flex;gap:8px;align-items:stretch;margin:6px 0 10px}
+  .walkbtn{flex:1;padding:12px 8px;font-size:14px}
+  .walkleft{font-size:12px;color:var(--muted);text-align:center;margin-top:-4px;margin-bottom:6px}
+
+  table.log{width:100%;border-collapse:collapse;font-size:13px}
+  table.log th,table.log td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  table.log th{color:var(--muted);font-weight:600;font-size:12px}
+  table.log td:first-child,table.log th:first-child{text-align:left}
+  .ok{color:#8ff0b6;font-weight:700}
+  .no{color:#ff8b9b;font-weight:700}
+  .emptylog{color:var(--muted);font-size:13px;padding:4px 2px}
+
+  .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:30;padding:18px}
+  .modal.show{display:flex}
+  .modalbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:620px;width:100%;
+    padding:22px 24px;line-height:1.55;max-height:88vh;overflow:auto}
+  .modalbox h2{margin-top:0}
+  .introbox{max-width:760px}
+  .introhero{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+  .introhero .rk{font-size:40px;line-height:1}
+  .introhero h2{margin:0;font-size:22px}
+  .introhero .sub{margin:3px 0 0;color:var(--muted);font-size:14px}
+  .modalbox h3{margin:16px 0 8px;font-size:15px}
+  .missions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0}
+  @media(max-width:620px){ .missions{grid-template-columns:1fr} }
+  .mcard{background:#0c1428;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:13px;line-height:1.45}
+  .mcard .em{font-size:26px}
+  .mcard .t{font-weight:800;font-size:14px;margin:2px 0 4px}
+  .mcard .w{color:var(--accent);font-weight:700;margin-top:6px}
+  ul.tips{margin:0;padding-left:20px}
+  ul.tips li{margin:5px 0}
+  .field{width:100%;font-size:1.1rem;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);margin-top:6px}
+  .field:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:2.3rem;font-weight:800;letter-spacing:.28em;
+    text-align:center;background:#0c1430;border:1px dashed var(--accent);border-radius:14px;padding:18px 10px 18px 22px;
+    color:var(--accent);margin:14px 0}
+  .congrats-emoji{font-size:2.6rem;text-align:center}
+  .turnin{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    font-size:.9rem;color:var(--muted)}
+  .row2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .refbox{max-width:720px}
+  .refq{background:#0c1428;border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin:10px 0}
+  .refq.good{border-color:#2f7d4a}
+  .refq .qn{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .refq .qt{font-weight:700;font-size:15px;line-height:1.45;margin:3px 0 6px}
+  textarea.field{font-size:16px;line-height:1.45;resize:vertical;min-height:96px;font-family:inherit}
+  .refmeta{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-top:5px;flex-wrap:wrap}
+  .refmeta .cnt{color:var(--muted);font-variant-numeric:tabular-nums}
+  .refmeta .chk{color:var(--muted);text-align:right;flex:1;min-width:180px}
+  .refmeta .chk.ok{color:#8ff0b6;font-weight:700}
+  .refmeta .chk.bad{color:#ffb4a8}
+  .reftip{font-size:13px;color:#ffb4a8;min-height:1.2em;margin-top:4px}
+  .row2 .btn{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎯 Projectile Missions</h1>
+  <span class="tag">Gravity · falling · motion in 2D</span>
+  <span class="spacer"></span>
+  <div class="medals" id="medals"></div>
+  <button class="helpbtn" id="helpBtn">📖&nbsp;How&nbsp;to&nbsp;play</button>
+  <button class="helpbtn" id="teacherBtn" title="Teacher: unlock all missions">🔑</button>
+</header>
+
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="stagewrap">
+    <canvas id="stage"></canvas>
+    <button class="btn stagebtn" id="stageBtn"></button>
+    <div class="panel" id="panel"></div>
+  </div>
+  <div class="dock" id="dock"></div>
+</div>
+
+<!-- instructions -->
+<div class="modal" id="intro"><div class="modalbox introbox">
+  <div class="introhero"><div class="rk">🎯</div><div>
+    <h2>Projectile Missions</h2>
+    <p class="sub">Three short missions about gravity and objects moving sideways while they fall. Figure out the pattern in each one to move on.</p>
+  </div></div>
+
+  <h3>The three missions (they unlock in order)</h3>
+  <div class="missions">
+    <div class="mcard"><div class="em">📦</div><div class="t">1 · Warehouse Drop</div>
+      Climb the shelves and drop packages onto robots rolling by below. The shelf height changes every time.
+      <div class="w">Clear: 5 catches in a row</div></div>
+    <div class="mcard"><div class="em">🏴‍☠️</div><div class="t">2 · Pirate Cannon</div>
+      Your cannon only fires sideways. Pick its launch speed so the cannonball lands on the shark swimming out from under the ship.
+      <div class="w">Clear: 5 hits in a row</div></div>
+    <div class="mcard"><div class="em">🏹</div><div class="t">3 · Archer Duel</div>
+      Aim at any angle, but your bow has a top speed. You and the computer swap between the tower and the ground every round.
+      <div class="w">Clear: win the best of 7</div></div>
+  </div>
+
+  <h3>How it works</h3>
+  <ul class="tips">
+    <li>Each mission starts with a short briefing. After every attempt you see <b>what happened and the numbers behind it</b>.</li>
+    <li>The <b>log</b> under the scene keeps a record of your attempts. Look for patterns in it!</li>
+    <li>Finish a mission to earn its <b>★</b> and unlock the next one. Your progress is saved on this device.</li>
+    <li>After each mission you'll answer <b>3 short questions</b> about what you discovered. You can't move on until they're answered completely, in your own words.</li>
+    <li>Finish all three missions to get your <b>completion code</b>. Your answers are turned in with it.</li>
+    <li>Tap <b>📖 How to play</b> any time to see this again.</li>
+  </ul>
+  <button class="btn" id="startPlay" style="width:100%;margin-top:14px">Start the missions 🎯</button>
+</div></div>
+
+<!-- reflection questions -->
+<div class="modal" id="refModal"><div class="modalbox refbox">
+  <div class="introhero"><div class="rk">✍️</div><div>
+    <h2 id="refTitle">Reflection</h2>
+    <p class="sub">Answer each question in <b>complete sentences, in your own words</b> (<span id="refLimits"></span> characters each).
+      Your answers are saved on this device and sent to your teacher with your completion code at the end.</p>
+  </div></div>
+  <div id="refQs"></div>
+  <div class="reftip" id="refTip"></div>
+  <div class="row2">
+    <button class="btn secondary" id="refLater">Save &amp; keep practicing</button>
+    <button class="btn" id="refSubmit">Submit answers →</button>
+  </div>
+</div></div>
+
+<!-- name entry -->
+<div class="modal" id="nameModal"><div class="modalbox" style="max-width:460px">
+  <div class="congrats-emoji">🏹</div>
+  <h2 style="text-align:center">All three missions complete!</h2>
+  <p style="text-align:center">Enter your name to get your completion code.</p>
+  <input class="field" id="nameField" type="text" autocomplete="name" placeholder="First and last name" maxlength="40">
+  <div id="nameErr" style="color:var(--cpu);font-size:.85rem;min-height:1.1em;margin-top:6px"></div>
+  <button class="btn" id="codeBtn" style="width:100%;margin-top:8px">Get my code →</button>
+</div></div>
+
+<!-- congrats + code -->
+<div class="modal" id="winModal"><div class="modalbox" style="max-width:500px">
+  <div class="congrats-emoji">🎉🏆🎉</div>
+  <h2 style="text-align:center">Congratulations, <span id="winName">friend</span>!</h2>
+  <p style="text-align:center">You completed <b>Projectile Missions</b>. Here is your completion code:</p>
+  <div class="code" id="codeOut">--------</div>
+  <button class="btn" id="turninBtn" style="width:100%;display:none">📨 Turn it in</button>
+  <div class="turnin" style="margin-top:12px" id="turninNote">Screenshot this page (or copy the code) and turn it in.
+    Your initials are in the <b>3rd</b> and <b>6th</b> spots.</div>
+  <div class="row2">
+    <button class="btn secondary" id="copyBtn">Copy code</button>
+    <button class="btn secondary" id="copyAnsBtn">Copy my answers</button>
+    <button class="btn secondary" id="againBtn">Duel again</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const pickNot=(a,cur)=>pick(a.filter(v=>v!==cur));
+const f1=v=>v.toFixed(1), f2=v=>v.toFixed(2);
+const G=9.8;
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function pipsHTML(n,total,cls='w'){ let h=''; for(let i=0;i<total;i++) h+=`<span class="pip ${i<n?cls:''}"></span>`; return h; }
+function holdBtn(el,fn){ let t1=null,t2=null; const stop=()=>{clearTimeout(t1);clearInterval(t2);t1=t2=null;};
+  el.addEventListener('pointerdown',e=>{ e.preventDefault(); if(el.disabled) return; fn();
+    t1=setTimeout(()=>{ t2=setInterval(()=>{ if(el.disabled){stop();return;} fn(); },70); },380); });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,stop)); }
+
+/* ---------- progress (saved on this device) ---------- */
+const SAVE_KEY='projectile-missions-v1';
+function loadSave(){ let d=null; try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(e){}
+  const arr=(a,f)=>[0,1,2].map(i=>a&&a[i]!=null?a[i]:f());
+  return { won:arr(d&&d.won,()=>false).map(Boolean), reflected:arr(d&&d.reflected,()=>false).map(Boolean),
+    answers:arr(d&&d.answers,()=>['','','']).map(a=>[0,1,2].map(j=>typeof a[j]==='string'?a[j]:'')) }; }
+function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify({won:state.won,reflected:state.reflected,answers:state.answers})); }catch(e){} }
+const state={pi:0, teacher:false, ...loadSave()};
+const done=i=>state.won[i]&&state.reflected[i];
+function unlocked(i){ return state.teacher || i===0 || done(i-1); }
+
+/* ---------- overlay panel on the stage ---------- */
+const panel=$('#panel');
+function showPanel(html,btns,opts={}){
+  panel.className='panel show'+(opts.center?' center':'')+(opts.left?' left':'');
+  panel.innerHTML=html+`<div class="rowbtns">${btns.map((b,i)=>`<button class="btn ${b.secondary?'secondary':''}" data-i="${i}" ${b.grow?'style="flex:1"':''}>${b.label}</button>`).join('')}</div>`;
+  panel.querySelectorAll('button[data-i]').forEach(el=>el.onclick=()=>btns[+el.dataset.i].fn());
+  panel.scrollTop=0;
+}
+function hidePanel(){ panel.className='panel'; }
+function setStageBtn(label,fn){ const b=$('#stageBtn'); if(!label){ b.className='btn stagebtn'; return; }
+  b.textContent=label; b.onclick=fn; b.className='btn stagebtn show'; }
+function mark(i){ if(!state.won[i]){ state.won[i]=true; save(); } renderTabs(); }
+
+/* ---------- canvas ---------- */
+const cv=$('#stage'), g=cv.getContext('2d'); let W=0,H=0;
+function fit(){ const dpr=Math.min(2.5,window.devicePixelRatio||1); W=cv.clientWidth; H=cv.clientHeight;
+  const bw=Math.round(W*dpr), bh=Math.round(H*dpr); if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;}
+  g.setTransform(dpr,0,0,dpr,0,0); }
+function rr(x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function txt(s,x,y,{size=12,color='#eaf0ff',align='left',bold=false,bg=null}={}){
+  g.font=`${bold?'700 ':''}${size}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif`;
+  g.textAlign=align; g.textBaseline='middle';
+  if(bg){ const tw=g.measureText(s).width, p=6; const bx=align==='center'?x-tw/2-p:align==='right'?x-tw-p:x-p;
+    g.fillStyle=bg; rr(bx,y-size/2-4,tw+p*2,size+8,6); g.fill(); }
+  g.fillStyle=color; g.fillText(s,x,y); }
+function line(x1,y1,x2,y2){ g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); }
+function dot(x,y,r){ g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); }
+function flag(x,y,color,text,up=0){ g.strokeStyle=color; g.lineWidth=2; line(x,y,x,y-26); g.fillStyle=color;
+  g.beginPath(); g.moveTo(x,y-26); g.lineTo(x+13,y-21); g.lineTo(x,y-16); g.closePath(); g.fill();
+  if(text) txt(text,x,y-34-up,{size:11,color,align:'center',bold:true,bg:'rgba(10,16,32,.8)'}); }
+
+/* ===================================================================
+   MISSION 1 — WAREHOUSE DROP
+   =================================================================== */
+const P1={
+  key:'drop', name:'Warehouse Drop', sub:'When do you let go?',
+  LEVELS:[2,4,6,8,10,12,14,16], V:3.0, DECK:0.45, PLAT:1.6, BOX:0.7, NEED:5, SPAWN:-13, LADDER:2.9, STAND:0.95, HOLD:0.85,
+  s:null,
+  plankY(h){ return this.DECK+h-this.HOLD; },   // box bottom (held at waist) sits exactly h above the robot deck
+  enter(){
+    this.s={phase:'brief',streak:0,cleared:false,H:null,wx:this.LADDER,wy:0,pose:'stand',climb:null,
+      robot:{x:this.SPAWN,on:false},box:null,rel:null,result:null,timer:0,log:[],clock:0};
+    this.dock(); this.brief();
+  },
+  brief(){
+    showPanel(`<div class="banner">📦 Mission 1 · Warehouse Drop</div>
+      <p class="ptext">You're a warehouse picker. Climb to the shelf, grab the package, and <b>drop it onto the delivery robot</b> as it rolls by on the floor below.</p>
+      <ul class="ptips">
+        <li>The robot rolls at a steady <b>${f1(this.V)} m/s</b>. When you let go, the package falls straight down the dashed <b>drop line</b>.</li>
+        <li>The shelf height <b>changes every time</b>.</li>
+        <li>Land <b>5 in a row</b> to clear the mission. A miss resets your streak to zero.</li>
+      </ul>
+      <p class="ptext muted">To let go: tap <b>DROP</b>, tap the scene, or press <b>Space</b>.</p>`,
+      [{label:'Start shift →',grow:true,fn:()=>{ hidePanel(); this.next(); }}],{center:true});
+    this.refresh();
+  },
+  next(){
+    const s=this.s; hidePanel();
+    s.H = s.H==null ? pick(this.LEVELS) : pickNot(this.LEVELS,s.H);
+    s.box=null; s.rel=null; s.result=null; s.robot={x:this.SPAWN,on:false};
+    const y1=this.plankY(s.H);
+    s.climb={t:0,x0:s.wx,y0:s.wy,y1,d1:Math.abs(s.wx-this.LADDER)/3.5,d2:Math.max(0.4,Math.abs(y1-s.wy)/9),d3:(this.LADDER-this.STAND)/3.5};
+    s.phase='climb'; this.refresh();
+  },
+  drop(){
+    const s=this.s; if(s.phase!=='rolling') return;
+    s.phase='falling'; s.box.state='fall'; s.box.t=0; s.rel=s.robot.x; s.pose='push'; this.refresh();
+  },
+  finish(kind){
+    const s=this.s, tf=Math.sqrt(2*s.H/G), need=this.V*tf, lead=s.rel==null?null:-s.rel, ok=kind==='caught';
+    s.streak = ok ? s.streak+1 : 0;
+    s.log.push({H:s.H,lead,need,ok,kind});
+    s.result={kind,tf,need,lead,ok}; s.phase='after'; s.timer=0; this.refresh();
+  },
+  showResult(){
+    const s=this.s, r=s.result; s.phase='result';
+    const heads={caught:'<span style="color:var(--good)">✅ Special delivery! Right on the robot.</span>',
+      early:'<span style="color:var(--cpu)">💥 Too early. The package hit the floor before the robot got there.</span>',
+      late:'<span style="color:var(--cpu)">💥 Too late. The robot had already rolled past.</span>',
+      nodrop:'<span style="color:var(--cpu)">⏰ The robot got away. You never let go!</span>'};
+    let w=`A package dropped from <b>${s.H} m</b> falls for <b>${f2(r.tf)} s</b>. In that time the robot rolls
+      ${f1(this.V)} m/s × ${f2(r.tf)} s = <b>${f1(r.need)} m</b>, so it needed to be <b>${f1(r.need)} m</b> from the drop line when you let go.`;
+    if(r.lead!=null) w+=` You let go when it was <b>${f1(r.lead)} m</b> away${r.ok?'.':` (${r.lead>r.need?'too early':'too late'} by ${f1(Math.abs(r.lead-r.need))} m).`}`;
+    const done = s.streak>=this.NEED && !s.cleared;
+    if(done){
+      s.cleared=true; mark(0);
+      showPanel(`<div class="banner" style="color:var(--good)">🏆 Mission 1 complete: ${this.NEED} in a row!</div>
+        <div class="worked">${w}</div>
+        <div class="worked"><b>What you found out:</b> a dropped package takes <b>time</b> to fall, so you have to let go <b>before</b> the robot is under you.
+        Higher shelves mean longer falls, so you let go <b>earlier</b> (with the robot farther away). Look at your log: is the fall time doubled when the height is doubled?</div>`,
+        [{label:state.reflected[0]?'Next mission: Pirate Cannon →':'✍️ Answer 3 questions → Mission 2',grow:true,fn:()=>afterMission(0)},{label:'Keep practicing',secondary:true,fn:()=>this.next()}],{left:true});
+    } else {
+      showPanel(`<div class="banner">${heads[r.kind]}</div>
+        <div class="streak">${pipsHTML(Math.min(s.streak,this.NEED),this.NEED)}<span class="mtxt">Streak ${s.streak} / ${this.NEED}${s.cleared?' · mission already cleared ★':''}</span></div>
+        <div class="worked">${w}</div>`,
+        [{label:'Next shelf →',grow:true,fn:()=>this.next()}],{left:true});
+    }
+    this.refresh();
+  },
+  update(dt){
+    const s=this.s; s.clock+=dt;
+    if(s.robot.on) s.robot.x+=this.V*dt;
+    if(s.phase==='climb'){
+      const c=s.climb; c.t+=dt;
+      if(c.t<c.d1){ s.wx=lerp(c.x0,this.LADDER,c.t/c.d1); s.wy=c.y0; s.pose='walk'; }
+      else if(c.t<c.d1+c.d2){ s.wx=this.LADDER; s.wy=lerp(c.y0,c.y1,ease((c.t-c.d1)/c.d2)); s.pose='climb'; }
+      else if(c.t<c.d1+c.d2+c.d3){ s.wx=lerp(this.LADDER,this.STAND,(c.t-c.d1-c.d2)/c.d3); s.wy=c.y1; s.pose='walk'; }
+      else { s.wx=this.STAND; s.wy=c.y1; s.pose='hold'; s.phase='rolling'; s.robot.on=true;
+        s.box={x:0,y0:this.DECK+s.H,y:this.DECK+s.H,t:0,state:'held'}; this.refresh(); }
+    } else if(s.phase==='rolling'){
+      if(s.robot.x>this.PLAT/2+this.BOX/2+0.4) this.finish('nodrop');
+    } else if(s.phase==='falling'){
+      const b=s.box; b.t+=dt; b.y=b.y0-0.5*G*b.t*b.t;
+      if(!b.checked && b.y<=this.DECK){ b.checked=true; const dx=b.x-s.robot.x; b.dx=dx;
+        if(Math.abs(dx)<=this.PLAT/2){ b.state='ride'; b.off=dx; b.y=this.DECK; this.finish('caught'); }
+        else if(Math.abs(dx)<this.PLAT/2+this.BOX/2) b.x=s.robot.x+Math.sign(dx)*(this.PLAT/2+this.BOX/2+0.03); }
+      if(b.state==='fall' && b.y<=0){ b.y=0; b.state='smash'; b.smashT=0; this.finish(b.dx>0?'early':'late'); }
+    }
+    if(s.phase==='after'||s.phase==='result'){
+      const b=s.box;
+      if(b){ if(b.state==='ride'){ b.x=s.robot.x+b.off; } else if(b.state==='smash') b.smashT+=dt; }
+      if(s.pose==='push' && s.timer>0.5) s.pose='stand';
+      s.timer+=dt; if(s.phase==='after' && s.timer>1.0) this.showResult();
+    }
+  },
+  pointer(type){ if(type==='down') this.drop(); },
+  key(k){ if(k===' ') this.drop(); },
+
+  /* ----- dock ----- */
+  dock(){
+    $('#dock').innerHTML=`
+    <div class="card"><h2>Mission 1 · Warehouse Drop</h2>
+      <div class="goal">Let go of the package so it lands on the robot. Get <b>5 in a row</b> to clear.</div>
+      <div class="givens">
+        <div class="given"><div class="k">Drop height</div><div class="v" id="p1H">—</div></div>
+        <div class="given"><div class="k">Robot speed</div><div class="v">${f1(this.V)} m/s</div></div>
+        <div class="given"><div class="k">Gravity g</div><div class="v">9.8 m/s²</div></div>
+      </div>
+      <div class="streak" id="p1Streak"></div></div>
+    <div class="card"><h2>Controls</h2>
+      <button class="btn big" id="p1Drop">📦 DROP!</button>
+      <div class="status" id="p1Status"></div>
+      <div class="hintline">Or tap anywhere on the scene, or press <b>Space</b>. The floor ruler shows how far the robot is from the drop line.</div></div>
+    <div class="card"><h2>Drop log</h2>
+      <table class="log"><thead><tr><th>Height</th><th>Robot distance at release</th><th>Needed</th><th>Result</th></tr></thead><tbody id="p1Log"></tbody></table>
+      <div class="emptylog" id="p1Empty">Your drops will show up here.</div></div>`;
+    $('#p1Drop').addEventListener('pointerdown',e=>{ e.preventDefault(); this.drop(); });
+  },
+  refresh(){
+    const s=this.s; if(!s||!$('#p1H')) return;
+    $('#p1H').textContent=s.H==null?'—':s.H+' m';
+    $('#p1Streak').innerHTML=pipsHTML(Math.min(s.streak,this.NEED),this.NEED)+`<span class="mtxt">Streak ${s.streak} / ${this.NEED}</span>`;
+    $('#p1Drop').disabled=s.phase!=='rolling';
+    $('#p1Status').textContent={brief:'',climb:'Climbing to the shelf…',rolling:'Here comes the robot. Let go at the right moment!',
+      falling:'Falling…',after:'',result:''}[s.phase]||'';
+    const tb=$('#p1Log'); tb.innerHTML='';
+    $('#p1Empty').style.display=s.log.length?'none':'block';
+    s.log.slice(-7).reverse().forEach(e=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${e.H} m</td><td>${e.lead==null?'no drop':f1(e.lead)+' m'}</td><td>${f1(e.need)} m</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ caught':e.kind==='early'?'✗ early':e.kind==='late'?'✗ late':'✗ missed'}</td>`;
+      tb.appendChild(tr); });
+  },
+
+  /* ----- drawing ----- */
+  draw(){
+    const s=this.s, w=W, h=H, floorY=h-26;
+    const sc=Math.min((floorY-10)/18.6,(w*0.68)/14.5), ox=Math.round(w*0.68);
+    const X=x=>ox+x*sc, Y=y=>floorY-y*sc;
+    // wall
+    let gr=g.createLinearGradient(0,0,0,floorY); gr.addColorStop(0,'#161e31'); gr.addColorStop(1,'#243049');
+    g.fillStyle=gr; g.fillRect(0,0,w,floorY);
+    g.strokeStyle='rgba(255,255,255,.035)'; g.lineWidth=1;
+    for(let x=ox%(4*sc); x<w; x+=4*sc) line(x,0,x,floorY);
+    // hanging lamps
+    for(let x=ox-3*sc; x>-20; x-=9*sc){ const lg=g.createRadialGradient(x,14,2,x,14,110);
+      lg.addColorStop(0,'rgba(255,236,170,.16)'); lg.addColorStop(1,'rgba(255,236,170,0)'); g.fillStyle=lg; g.fillRect(x-110,0,220,130);
+      g.fillStyle='#39455f'; g.fillRect(x-1,0,2,8); g.beginPath(); g.moveTo(x-9,14); g.lineTo(x+9,14); g.lineTo(x+5,8); g.lineTo(x-5,8); g.closePath(); g.fill(); }
+    txt('ZONE 7 · OUTBOUND',14,floorY-16,{size:13,color:'rgba(255,255,255,.08)',bold:true});
+    // floor + ruler
+    g.fillStyle='#2b3342'; g.fillRect(0,floorY,w,h-floorY);
+    g.fillStyle='#e8b923'; g.fillRect(0,floorY+1,w,2);
+    g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=1;
+    for(let m=0;m<=16;m++){ const px=X(-m); if(px<0) break; line(px,floorY,px,floorY+(m%2===0?9:5));
+      if(m%(sc*2<34?4:2)===0) txt(m===0?'0':m+' m',px,floorY+17,{size:10,color:'#9fb0d6',align:'center'}); }
+    // rack
+    const rackL=0.4, topY=this.plankY(16)+2.2;
+    g.fillStyle='#d9692a';
+    for(let x=rackL; X(x)<w+10; x+=4.3) g.fillRect(X(x)-2,Y(topY),5,Y(0)-Y(topY));
+    this.LEVELS.forEach((L,i)=>{ const py=this.plankY(L), yy=Y(py);
+      g.fillStyle='#3a86c8'; g.fillRect(X(rackL),yy-1,w-X(rackL),Math.max(4,0.14*sc));
+      let x0=3.6+(i%3)*0.35, k=0;
+      while(X(x0)<w){ const bs=0.55+((i*7+k*3)%4)*0.09; this.box2(X(x0+bs/2),yy-1,bs*sc,0.55); x0+=bs+0.35+((i+k)%3)*0.55; k++; }
+      txt(L+' m',X(rackL)+4,yy+8,{size:9,color:'rgba(255,255,255,.35)'});
+    });
+    // ladder
+    g.strokeStyle='#b8c2d6'; g.lineWidth=Math.max(2,0.07*sc);
+    line(X(this.LADDER-0.25),Y(0),X(this.LADDER-0.25),Y(topY)); line(X(this.LADDER+0.25),Y(0),X(this.LADDER+0.25),Y(topY));
+    g.lineWidth=Math.max(1.5,0.05*sc); for(let y=0.3;y<topY;y+=0.4) line(X(this.LADDER-0.25),Y(y),X(this.LADDER+0.25),Y(y));
+    // drop line + height marker
+    if(s.H!=null && s.phase!=='brief'){
+      g.strokeStyle='rgba(255,209,102,.55)'; g.setLineDash([6,5]); g.lineWidth=1.5;
+      line(X(0),Y(this.DECK+s.H),X(0),Y(0)); g.setLineDash([]);
+      txt(s.H+' m drop',X(0)-8,Y(this.DECK+s.H/2),{size:12,color:'#ffd166',align:'right',bold:true,bg:'rgba(10,16,32,.75)'});
+    }
+    // flags: where you let go / where you needed to
+    if(s.rel!=null) flag(X(s.rel),floorY,'#ff9f43','let go');
+    if(s.result && (s.phase==='after'||s.phase==='result')) flag(X(-s.result.need),floorY,'#8ff0b6','needed',22);
+    // robot
+    this.robot(X(s.robot.x),floorY,sc,s.clock);
+    if(s.phase==='rolling' && s.robot.x<-0.05 && X(s.robot.x)>-20)
+      txt(f1(-s.robot.x)+' m',X(s.robot.x),Y(this.DECK+0.9),{size:11,color:'#bff5ef',align:'center',bold:true,bg:'rgba(10,16,32,.7)'});
+    // strobe (every 0.1 s) of the falling package
+    const b=s.box;
+    if(b && b.state!=='held'){ const tf=Math.sqrt(2*s.H/G), tEnd=Math.min(b.t,tf);
+      for(let t=0.1;t<tEnd-1e-6;t+=0.1){ const y=b.y0-0.5*G*t*t; g.strokeStyle='rgba(200,145,79,.55)'; g.lineWidth=1;
+        g.strokeRect(X(-this.BOX/2),Y(y+this.BOX),this.BOX*sc,this.BOX*sc); } }
+    // package
+    if(b){ if(b.state==='smash'){ const bw=this.BOX*sc*1.3, bh=this.BOX*sc*0.35; g.fillStyle='#b07a3e'; g.fillRect(X(b.x)-bw/2,floorY-bh,bw,bh);
+        if(b.smashT<0.8) txt('💥',X(b.x),floorY-bh-12,{size:22,align:'center'}); }
+      else this.box2(X(b.x),Y(b.y),this.BOX*sc,1); }
+    // worker
+    this.worker(X(s.wx),Y(s.wy),sc,s.pose,s.clock);
+    // HUD
+    txt(`Streak ${s.streak} / ${this.NEED}`,12,16,{size:13,bold:true,color:'#ffd166',bg:'rgba(10,16,32,.7)'});
+    txt(`Robot speed ${f1(this.V)} m/s · g = 9.8 m/s²`,12,40,{size:11,color:'#c8d4f0',bg:'rgba(10,16,32,.6)'});
+  },
+  box2(cx,bottom,size,alpha){ g.globalAlpha=alpha; g.fillStyle='#c8914f'; g.fillRect(cx-size/2,bottom-size,size,size);
+    g.strokeStyle='#8a5a28'; g.lineWidth=1; g.strokeRect(cx-size/2,bottom-size,size,size);
+    g.fillStyle='#e7c48f'; g.fillRect(cx-size*0.09,bottom-size,size*0.18,size); g.globalAlpha=1; },
+  robot(px,floorY,sc,t){
+    const k=sc, w=this.PLAT*k, deck=floorY-this.DECK*k;
+    g.fillStyle='#1b2130'; dot(px-0.55*k,floorY-0.1*k,Math.max(2,0.11*k)); dot(px+0.55*k,floorY-0.1*k,Math.max(2,0.11*k));
+    g.fillStyle='#1fa99b'; rr(px-w/2,deck,w,(this.DECK-0.12)*k,Math.max(2,0.08*k)); g.fill();
+    g.fillStyle='#7ff0e2'; g.fillRect(px-w/2,deck,w,Math.max(2,0.06*k));
+    g.fillStyle='#0f5e57'; g.fillRect(px-w/2+0.2*k,deck+0.16*k,w-0.4*k,Math.max(1,0.05*k));
+    g.strokeStyle='#8aa0b8'; g.lineWidth=Math.max(1.5,0.04*k); line(px-w/2+0.12*k,deck,px-w/2+0.12*k,deck-0.5*k);
+    g.fillStyle=(Math.floor(t*4)%2)?'#ff5a3c':'#7a2a1e'; dot(px-w/2+0.12*k,deck-0.55*k,Math.max(2,0.08*k));
+    g.strokeStyle='rgba(255,209,102,.8)'; g.lineWidth=1; line(px,deck-2,px,deck+4);
+  },
+  worker(px,py,k,pose,t){
+    g.save(); g.translate(px,py); g.scale(-1,1); g.lineCap='round'; g.lineJoin='round';
+    const P=(x,y)=>[x*k,-y*k], L=(a,b)=>line(a[0],a[1],b[0],b[1]), lw=Math.max(2,0.11*k);
+    const sw=pose==='walk'?Math.sin(t*12)*0.16:0, cl=pose==='climb'?Math.sin(t*10)*0.15:0;
+    g.strokeStyle='#2d3a5a'; g.lineWidth=lw*1.25;
+    if(pose==='climb'){ L(P(0,0.9),P(0.12,0.45+cl)); L(P(0.12,0.45+cl),P(0.05,0.05+cl)); L(P(0,0.9),P(0.12,0.45-cl)); L(P(0.12,0.45-cl),P(0.05,0.05-cl)); }
+    else { L(P(0,0.9),P(0.13+sw,0)); L(P(0,0.9),P(-0.13-sw,0)); }
+    g.strokeStyle='#ff8c1a'; g.lineWidth=0.34*k; L(P(0,0.98),P(0,1.36));
+    g.strokeStyle='#e6f3ff'; g.lineWidth=Math.max(1,0.05*k); L(P(-0.17,1.12),P(0.17,1.12));
+    g.fillStyle='#f1c27d'; const hd=P(0.02,1.6); dot(hd[0],hd[1],0.14*k);
+    g.fillStyle='#ffd400'; g.beginPath(); g.arc(hd[0],hd[1]-0.03*k,0.16*k,Math.PI,0); g.fill(); g.fillRect(hd[0]-0.05*k,hd[1]-0.05*k,0.25*k,0.04*k);
+    g.strokeStyle='#ff8c1a'; g.lineWidth=lw;
+    if(pose==='hold'){ L(P(0.02,1.34),P(0.62,1.25)); L(P(0.02,1.3),P(0.62,1.1)); }
+    else if(pose==='push'){ L(P(0.02,1.34),P(0.72,1.3)); L(P(0.02,1.3),P(0.72,1.15)); }
+    else if(pose==='climb'){ L(P(0.02,1.34),P(0.15,1.85-cl)); L(P(0.02,1.3),P(0.15,1.8+cl)); }
+    else { L(P(0.02,1.34),P(0.12-sw,0.95)); L(P(0.02,1.3),P(-0.1+sw,0.95)); }
+    g.restore();
+  }
+};
+
+/* ===================================================================
+   MISSION 2 — PIRATE CANNON
+   =================================================================== */
+const P2={
+  key:'cannon', name:'Pirate Cannon', sub:'Horizontal launch',
+  HEIGHTS:[3,5,7,9,11,13], SPEEDS:Array.from({length:15},(_,i)=>3+i*0.5), NEED:5, TOL:0.8, VMAX:20, STEP:0.5,
+  s:null,
+  enter(){
+    this.s={phase:'brief',streak:0,cleared:false,H:null,vs:null,vc:5.0,shark:{x:-5.5,on:false,hit:false},ball:null,
+      result:null,timer:0,log:[],clock:0,flash:0,splash:[],smoke:[]};
+    this.dock(); this.brief();
+  },
+  brief(){
+    showPanel(`<div class="banner">🏴‍☠️ Mission 2 · Pirate Cannon</div>
+      <p class="ptext">Sharks keep circling your ship! Your cannon is stuck pointing <b>straight out sideways</b>. It can't aim up or down. You can only change how fast the cannonball leaves the barrel.</p>
+      <ul class="ptips">
+        <li>Each shark swims out from <b>right under the cannon</b>. The gunner fires the <b>instant</b> the shark passes below.</li>
+        <li>Set the <b>cannon speed</b>, then press <b>Fire</b>. Land the cannonball on the shark.</li>
+        <li>The cannon height and the shark's speed <b>change every shot</b>. Hit <b>5 in a row</b> to clear.</li>
+      </ul>`,
+      [{label:'Load the cannon →',grow:true,fn:()=>{ hidePanel(); this.next(); }}],{center:true});
+    this.refresh();
+  },
+  next(){
+    const s=this.s; hidePanel();
+    s.H = s.H==null ? pick(this.HEIGHTS) : pickNot(this.HEIGHTS,s.H);
+    s.vs = s.vs==null ? pick(this.SPEEDS) : pickNot(this.SPEEDS,s.vs);
+    s.shark={x:-5.5,on:false,hit:false}; s.ball=null; s.result=null; s.splash=[]; s.phase='aim'; this.refresh();
+  },
+  fire(){ const s=this.s; if(s.phase!=='aim') return; s.phase='approach'; s.shark.on=true; s.vcShot=s.vc; this.refresh(); },
+  land(){
+    const s=this.s, tf=Math.sqrt(2*s.H/G), landX=s.vcShot*tf, sharkX=s.vs*tf, miss=landX-sharkX, ok=Math.abs(miss)<=this.TOL;
+    s.streak = ok ? s.streak+1 : 0; s.shark.hit=ok;
+    for(let i=0;i<18;i++) s.splash.push({x:landX,y:0,vx:(Math.random()-.5)*4,vy:2+Math.random()*5,life:1});
+    s.log.push({H:s.H,vs:s.vs,vc:s.vcShot,miss,ok});
+    s.result={tf,landX,sharkX,miss,ok}; s.phase='after'; s.timer=0; this.refresh();
+  },
+  showResult(){
+    const s=this.s, r=s.result; s.phase='result';
+    let w=`From <b>${s.H} m</b> up, the cannonball falls for <b>${f2(r.tf)} s</b>. In that time it travels sideways
+      ${f1(s.vcShot)} m/s × ${f2(r.tf)} s = <b>${f1(r.landX)} m</b>, and the shark swims ${f1(s.vs)} m/s × ${f2(r.tf)} s = <b>${f1(r.sharkX)} m</b>.`;
+    if(!r.ok) w+=` You landed <b>${f1(Math.abs(r.miss))} m ${r.miss<0?'behind':'ahead of'}</b> the shark, so your cannon was too <b>${r.miss<0?'slow':'fast'}</b>.`;
+    else if(Math.abs(r.miss)>0.05) w+=` Close enough: only ${f1(Math.abs(r.miss))} m off.`;
+    const done = s.streak>=this.NEED && !s.cleared;
+    if(done){
+      s.cleared=true; mark(1);
+      showPanel(`<div class="banner" style="color:var(--good)">🏆 Mission 2 complete: ${this.NEED} sharks in a row!</div>
+        <div class="worked">${w}</div>
+        <div class="worked"><b>What you found out:</b> once the cannonball leaves the barrel, its <b>sideways speed never changes</b>. Gravity only pulls it <b>down</b>.
+        So if it moves sideways at the <b>same speed as the shark</b>, it stays right above the shark the whole way down.
+        The height only changes <i>how long</i> the fall takes, and the ball and the shark both get that same amount of time.</div>`,
+        [{label:state.reflected[1]?'Next mission: Archer Duel →':'✍️ Answer 3 questions → Mission 3',grow:true,fn:()=>afterMission(1)},{label:'Keep practicing',secondary:true,fn:()=>this.next()}]);
+    } else {
+      showPanel(`<div class="banner">${r.ok?'<span style="color:var(--good)">🎯 Direct hit! Bonk!</span>':'<span style="color:var(--cpu)">💦 Splash. Missed the shark.</span>'}</div>
+        <div class="streak">${pipsHTML(Math.min(s.streak,this.NEED),this.NEED)}<span class="mtxt">Streak ${s.streak} / ${this.NEED}${s.cleared?' · mission already cleared ★':''}</span></div>
+        <div class="worked">${w}</div>
+        <div class="hintline">The dotted lines connect where the ball and the shark were at the same moments (every 0.1 s).</div>`,
+        [{label:'Next shark →',grow:true,fn:()=>this.next()}]);
+    }
+    this.refresh();
+  },
+  update(dt){
+    const s=this.s; s.clock+=dt; s.flash=Math.max(0,s.flash-dt);
+    if(s.shark.on) s.shark.x+=s.vs*dt*(s.shark.hit?0.7:1);
+    if(s.phase==='approach' && s.shark.x>=0){
+      s.ball={t:s.shark.x/s.vs}; s.flash=0.25; s.phase='flight';
+      for(let i=0;i<10;i++) s.smoke.push({x:0.3,y:s.H,vx:1+Math.random()*2,vy:(Math.random()-.3)*1.2,life:1});
+      this.refresh();
+    }
+    if(s.phase==='flight'){ const tf=Math.sqrt(2*s.H/G); s.ball.t+=dt; if(s.ball.t>=tf){ s.ball.t=tf; this.land(); } }
+    s.splash.forEach(p=>{ p.x+=p.vx*dt; p.vy-=G*dt; p.y+=p.vy*dt; p.life-=dt*0.9; });
+    s.splash=s.splash.filter(p=>p.life>0&&p.y>-0.2);
+    s.smoke.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*0.7; }); s.smoke=s.smoke.filter(p=>p.life>0);
+    if(s.phase==='after'){ s.timer+=dt; if(s.timer>1.3) this.showResult(); }
+  },
+  pointer(){}, key(k){ if(k===' ') this.fire(); },
+
+  dock(){
+    $('#dock').innerHTML=`
+    <div class="card"><h2>Mission 2 · Pirate Cannon</h2>
+      <div class="goal">The cannon fires <b>horizontally</b> the instant the shark swims out from under it. Choose the launch speed that lands the ball <b>on the shark</b>. <b>5 in a row</b> to clear.</div>
+      <div class="givens">
+        <div class="given"><div class="k">Cannon height</div><div class="v" id="p2H">—</div></div>
+        <div class="given"><div class="k">Shark speed</div><div class="v" id="p2S">—</div></div>
+        <div class="given"><div class="k">Gravity g</div><div class="v">9.8 m/s²</div></div>
+      </div>
+      <div class="streak" id="p2Streak"></div></div>
+    <div class="card"><h2>Your cannon</h2>
+      <div class="ctrl"><div class="lab"><div class="t">Launch speed (sideways)</div><div class="u">steps of 0.5 m/s · hold to change fast</div></div>
+        <div class="stepper"><button class="stepbtn" id="p2Dn">−</button>
+          <div class="val"><span id="p2V">5.0</span><br><small>m/s</small></div>
+          <button class="stepbtn" id="p2Up">+</button></div></div>
+      <button class="btn big" id="p2Fire" style="background:#ff8a3d">🔥 FIRE!</button>
+      <div class="status" id="p2Status"></div></div>
+    <div class="card"><h2>Cannon log</h2>
+      <table class="log"><thead><tr><th>Height</th><th>Shark</th><th>Cannon</th><th>Landed</th><th>Result</th></tr></thead><tbody id="p2Log"></tbody></table>
+      <div class="emptylog" id="p2Empty">Your shots will show up here.</div></div>`;
+    const stp=d=>{ const s=this.s; if(s.phase!=='aim') return; s.vc=clamp(Math.round((s.vc+d*this.STEP)*2)/2,0,this.VMAX); this.refresh(); };
+    holdBtn($('#p2Dn'),()=>stp(-1)); holdBtn($('#p2Up'),()=>stp(1));
+    $('#p2Fire').onclick=()=>this.fire();
+  },
+  refresh(){
+    const s=this.s; if(!s||!$('#p2H')) return;
+    $('#p2H').textContent=s.H==null?'—':s.H+' m';
+    $('#p2S').textContent=s.vs==null?'—':f1(s.vs)+' m/s';
+    $('#p2V').textContent=f1(s.vc);
+    const aim=s.phase==='aim';
+    $('#p2Dn').disabled=!aim||s.vc<=0; $('#p2Up').disabled=!aim||s.vc>=this.VMAX; $('#p2Fire').disabled=!aim;
+    $('#p2Streak').innerHTML=pipsHTML(Math.min(s.streak,this.NEED),this.NEED)+`<span class="mtxt">Streak ${s.streak} / ${this.NEED}</span>`;
+    $('#p2Status').textContent={aim:'Set the speed, then fire.',approach:'Here comes the shark…',flight:'Cannonball away!'}[s.phase]||'';
+    const tb=$('#p2Log'); tb.innerHTML=''; $('#p2Empty').style.display=s.log.length?'none':'block';
+    s.log.slice(-7).reverse().forEach(e=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${e.H} m</td><td>${f1(e.vs)}</td><td>${f1(e.vc)}</td><td>${Math.abs(e.miss)<0.05?'on it':f1(Math.abs(e.miss))+' m '+(e.miss<0?'behind':'ahead')}</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ hit':'✗ miss'}</td>`;
+      tb.appendChild(tr); });
+  },
+
+  draw(){
+    const s=this.s, w=W, h=H;
+    const sc=Math.min(h/22.5,w/40), ox=Math.round(Math.min(15.5*sc,w*0.3)), surf=h-2.3*sc;
+    const X=x=>ox+x*sc, Y=y=>surf-y*sc;
+    // sky
+    let gr=g.createLinearGradient(0,0,0,surf); gr.addColorStop(0,'#1b2a55'); gr.addColorStop(.7,'#6a4e7a'); gr.addColorStop(1,'#e9a86b');
+    g.fillStyle=gr; g.fillRect(0,0,w,surf);
+    g.fillStyle='rgba(255,214,150,.9)'; dot(w*0.82,surf-18,26);
+    g.fillStyle='rgba(255,255,255,.12)'; [[.45,.2],[.7,.12],[.9,.3]].forEach(([a,b])=>{ const cx=w*a+Math.sin(s.clock*0.05+a*9)*20, cy=h*b;
+      g.beginPath(); g.ellipse(cx,cy,48,11,0,0,7); g.fill(); g.beginPath(); g.ellipse(cx+26,cy-7,28,9,0,0,7); g.fill(); });
+    // sea
+    gr=g.createLinearGradient(0,surf,0,h); gr.addColorStop(0,'#16507e'); gr.addColorStop(1,'#07233f');
+    g.fillStyle=gr; g.fillRect(0,surf,w,h-surf);
+    // distance markers (every 5 m from the cannon)
+    for(let m=5; X(m)<w; m+=5){ const px=X(m); g.fillStyle='#e04848'; g.fillRect(px-2,surf-7,4,7); g.fillStyle='#fff'; g.fillRect(px-2,surf-4,4,2);
+      txt(m+' m',px,h-8,{size:10,color:'rgba(220,235,255,.75)',align:'center'}); }
+    // shark (drawn before the hull so it can hide under the ship)
+    this.shark(X(s.shark.x),surf,sc,s.clock,s.shark.hit);
+    this.ship(X,Y,sc,s);
+    // waves
+    g.strokeStyle='rgba(200,230,255,.5)'; g.lineWidth=1.5; g.beginPath();
+    for(let x=0;x<=w;x+=6){ const y=surf+Math.sin(x*0.05+s.clock*2)*1.6; x?g.lineTo(x,y):g.moveTo(x,y); } g.stroke();
+    // height marker
+    if(s.H!=null && s.phase!=='brief'){
+      if(s.phase==='aim'||s.phase==='approach'){ g.strokeStyle='rgba(255,209,102,.5)'; g.setLineDash([5,5]); g.lineWidth=1.3;
+        line(X(0.05),Y(s.H),X(0.05),surf); g.setLineDash([]); }
+      txt(s.H+' m',X(0.5),Y(s.H/2),{size:12,color:'#ffd166',bold:true,bg:'rgba(10,16,32,.7)'});
+    }
+    // strobe: ball & shark at the same moments
+    const tf=s.H?Math.sqrt(2*s.H/G):0;
+    if(s.ball){ const tEnd=Math.min(s.ball.t,tf);
+      for(let t=0.1;t<=tEnd+1e-6;t+=0.1){ const bx=X(s.vcShot*t), by=Y(s.H-0.5*G*t*t), shx=X(s.vs*t);
+        g.strokeStyle='rgba(255,255,255,.28)'; g.setLineDash([2,3]); g.lineWidth=1; line(bx,by,shx,surf); g.setLineDash([]);
+        g.fillStyle='rgba(255,209,102,.8)'; dot(bx,by,2.4); g.fillStyle='rgba(180,220,255,.9)'; dot(shx,surf+3,2.2); } }
+    // ball
+    if(s.ball && s.phase==='flight'){ const t=s.ball.t, bx=X(s.vcShot*t), by=Y(s.H-0.5*G*t*t);
+      g.strokeStyle='rgba(255,255,255,.35)'; g.setLineDash([4,4]); line(bx,by,bx,surf); g.setLineDash([]);
+      g.fillStyle='#15171c'; dot(bx,by,Math.max(4,0.25*sc)); g.fillStyle='rgba(255,255,255,.35)'; dot(bx-1.5,by-1.5,Math.max(1.3,0.07*sc)); }
+    // muzzle flash / smoke / splash
+    if(s.flash>0){ g.fillStyle=`rgba(255,190,80,${s.flash*3})`; dot(X(0.3),Y(s.H),0.7*sc*(1+s.flash*2)); }
+    s.smoke.forEach(p=>{ g.fillStyle=`rgba(210,210,210,${p.life*0.35})`; dot(X(p.x),Y(p.y),(1.4-p.life)*0.9*sc); });
+    s.splash.forEach(p=>{ g.fillStyle=`rgba(220,240,255,${p.life})`; dot(X(p.x),Y(p.y),Math.max(1.5,0.12*sc)); });
+    if(s.result && (s.phase==='after'||s.phase==='result') && s.result.ok)
+      txt('BONK! 💫',X(s.shark.x),Y(2.2),{size:15,bold:true,color:'#ffd166',align:'center'});
+    // HUD
+    txt(`Streak ${s.streak} / ${this.NEED}`,12,16,{size:13,bold:true,color:'#ffd166',bg:'rgba(10,16,32,.7)'});
+    if(s.vs!=null) txt(`🦈 Shark speed ${f1(s.vs)} m/s   ·   💣 Cannon speed ${f1(s.phase==='aim'?s.vc:s.vcShot)} m/s`,12,40,{size:12,color:'#eaf0ff',bg:'rgba(10,16,32,.65)'});
+  },
+  ship(X,Y,sc,s){
+    // masts & sails
+    g.fillStyle='#4a2f1b'; [[-12.5,17.2],[-8.5,18]].forEach(([mx,top])=>g.fillRect(X(mx)-0.13*sc,Y(top),0.26*sc,Y(5.8)-Y(top)));
+    g.fillStyle='rgba(236,226,200,.92)';
+    [[-12.5,7.8,11.8,2.4],[-12.5,12.4,16.2,1.9],[-8.5,8.2,12.6,2.6],[-8.5,13.2,17,2.1]].forEach(([mx,y0,y1,hw])=>{
+      g.beginPath(); g.moveTo(X(mx-hw),Y(y1)); g.lineTo(X(mx+hw),Y(y1)); g.quadraticCurveTo(X(mx+hw+0.8),Y((y0+y1)/2),X(mx+hw),Y(y0));
+      g.lineTo(X(mx-hw),Y(y0)); g.quadraticCurveTo(X(mx-hw+0.8),Y((y0+y1)/2),X(mx-hw),Y(y1)); g.fill(); });
+    // jolly roger
+    g.fillStyle='#111'; g.fillRect(X(-8.5),Y(18),1.6*sc,1.0*sc);
+    g.fillStyle='#eee'; dot(X(-7.7),Y(17.55),Math.max(1.5,0.22*sc)); g.fillRect(X(-7.9),Y(17.35),0.4*sc,Math.max(1,0.12*sc));
+    // hull + tall stern castle
+    const pts=[[-16,5.8],[-14.2,-1.0],[-2.2,-1.0],[-0.3,1.2],[-0.3,14.6],[-5.2,14.6],[-5.2,5.8]];
+    const gr=g.createLinearGradient(0,Y(15),0,Y(-1)); gr.addColorStop(0,'#7a4a2a'); gr.addColorStop(1,'#4b2c17');
+    g.fillStyle=gr; g.beginPath(); pts.forEach(([x,y],i)=>i?g.lineTo(X(x),Y(y)):g.moveTo(X(x),Y(y))); g.closePath(); g.fill();
+    g.save(); g.clip(); g.strokeStyle='rgba(0,0,0,.25)'; g.lineWidth=1;
+    for(let y=-1;y<15;y+=0.9) line(X(-16),Y(y),X(0),Y(y)); g.restore();
+    g.strokeStyle='#2e1a0c'; g.lineWidth=2; g.beginPath(); pts.forEach(([x,y],i)=>i?g.lineTo(X(x),Y(y)):g.moveTo(X(x),Y(y))); g.closePath(); g.stroke();
+    g.fillStyle='#d4a24c'; g.fillRect(X(-16),Y(5.8)-2,X(-5.2)-X(-16),4); g.fillRect(X(-5.2),Y(14.6)-2,X(-0.3)-X(-5.2),4);
+    g.strokeStyle='#3a2210'; g.lineWidth=Math.max(1.5,0.08*sc);
+    for(let x=-5;x<-0.3;x+=0.9) line(X(x),Y(14.6),X(x),Y(15.5)); line(X(-5.2),Y(15.5),X(-0.3),Y(15.5));
+    // gun ports and the active cannon
+    this.HEIGHTS.forEach(hh=>{ const act=hh===s.H && s.phase!=='brief';
+      g.fillStyle=act?'#140b05':'#5a3519'; g.fillRect(X(-1.35),Y(hh+0.38),0.8*sc,0.76*sc);
+      g.strokeStyle='#d4a24c'; g.lineWidth=1; g.strokeRect(X(-1.35),Y(hh+0.38),0.8*sc,0.76*sc); });
+    if(s.H!=null && s.phase!=='brief'){ const r=Math.max(3,0.27*sc);
+      g.fillStyle='#23252b'; g.beginPath(); g.moveTo(X(-1.2),Y(s.H)-r*1.15); g.lineTo(X(0),Y(s.H)-r*0.85); g.lineTo(X(0),Y(s.H)+r*0.85); g.lineTo(X(-1.2),Y(s.H)+r*1.15); g.closePath(); g.fill();
+      g.fillStyle='#3b3f48'; g.fillRect(X(-0.12),Y(s.H)-r,0.14*sc,r*2); }
+  },
+  shark(px,surf,k,t,hit){
+    const L=2.6*k, bob=Math.sin(t*6)*0.6;
+    g.save(); g.translate(px,surf+0.55*k+bob); if(hit) g.rotate(Math.sin(t*9)*0.25);
+    g.fillStyle='rgba(120,145,170,.55)'; g.beginPath(); g.ellipse(0,0,L/2,0.26*k,0,0,7); g.fill();
+    g.beginPath(); g.moveTo(-L/2+2,0); g.lineTo(-L/2-0.45*k,-0.35*k); g.lineTo(-L/2-0.3*k,0); g.lineTo(-L/2-0.45*k,0.3*k); g.closePath(); g.fill();
+    g.restore();
+    g.fillStyle='#5d6f82'; g.beginPath(); g.moveTo(px-0.35*k,surf+1); g.lineTo(px+0.05*k,surf-0.62*k+bob*0.3); g.lineTo(px+0.25*k,surf+1); g.closePath(); g.fill();
+    if(hit) txt('✦ ✧ ✦',px,surf-0.95*k,{size:11,color:'#ffe08a',align:'center',bold:true});
+  }
+};
+
+/* ===================================================================
+   MISSION 3 — ARCHER DUEL
+   =================================================================== */
+const P3={
+  key:'duel', name:'Archer Duel', sub:'Angle, range & impact speed',
+  T:15, VMAX:25, HP:100, DMGK:1.5, WALK:8, WSPD:3.5, TW:5, TX:-1.1, MINX:4, BW:0.7, BH:1.8, HAND:1.35, WIN:4, TS:1.3,
+  s:null, view:null,
+  towerRange(){ const v=this.VMAX, h=this.T+this.HAND-this.BH/2; return (v/G)*Math.sqrt(v*v+2*G*h)+this.TX+0.3; },
+  groundReachX(){ const v=this.VMAX, dy=this.T+this.BH/2-this.HAND; return (v/G)*Math.sqrt(v*v-2*G*dy)+this.TX+0.3; },
+  vTowerHit(){ return Math.sqrt(this.VMAX**2+2*G*(this.T+this.HAND-this.BH/2)); },
+  vGroundHit(){ return Math.sqrt(this.VMAX**2-2*G*(this.T+this.BH/2-this.HAND)); },
+  onTower(a){ return a.y>0; },
+  dir(a){ return this.onTower(a)?1:-1; },
+  hand(a){ return {x:a.x+this.dir(a)*0.3, y:a.y+this.HAND}; },
+  enter(){ this.newMatch(); this.dock(); this.brief(); },
+  newMatch(){ this.s={round:1,pw:0,cw:0,log:[],clock:0,shotNo:0,walkDir:0}; this.setupRound(); },
+  setupRound(){
+    const s=this.s; s.youTower=s.round%2===1; s.d0=Math.round(0.92*this.towerRange());
+    const tower={x:this.TX,y:this.T}, ground={x:s.d0,y:0};
+    s.you={who:'you',name:'YOU',color:'#ffd166',hp:this.HP,flash:0,walking:false,...(s.youTower?tower:ground)};
+    s.cpu={who:'cpu',name:'CPU',color:'#ff5a6e',hp:this.HP,flash:0,walking:false,...(s.youTower?ground:tower)};
+    s.aim=s.youTower?{ang:10,pow:22}:{ang:40,pow:25};
+    s.arrow=null; s.trails=[]; s.stuck=[]; s.pops=[]; s.cpuShots=0; s.hits={you:[],cpu:[]};
+    s.turn=null; s.walked=0; s.walkDir=0; s.phase='ready'; s.cpuAim=null;
+  },
+  brief(){
+    showPanel(`<div class="banner">🏹 Mission 3 · Archer Duel</div>
+      <p class="ptext">Duel the computer archer. One of you stands on top of a <b>${this.T} m tower</b>; the other starts on the ground far away and can walk closer.</p>
+      <ul class="ptips">
+        <li>Aim at <b>any angle</b>, but your bow has a limit: <b>${this.VMAX} m/s</b> max.</li>
+        <li>Take turns shooting. On the ground you may <b>walk up to ${this.WALK} m</b> each turn before you shoot.</li>
+        <li><b>Damage = 1.5 × the arrow's speed when it hits.</b> Faster arrow, bigger hit. Each archer has ${this.HP} health.</li>
+        <li>You and the computer <b>swap places every round</b>. Win a <b>best of 7</b> (first to ${this.WIN}).</li>
+        <li>The computer is sloppy at first, but it gets <b>more accurate with every shot</b> it takes in a round.</li>
+      </ul>
+      <p class="ptext muted">To aim, drag on the scene (direction = angle, length = speed) or use the steppers. Watch which spot wins, and think about why.</p>`,
+      [{label:'Begin the duel →',grow:true,fn:()=>{ hidePanel(); this.roundIntro(); }}],{center:true});
+    this.refresh();
+  },
+  roundIntro(){
+    const s=this.s;
+    showPanel(`<div class="banner">Round ${s.round} of 7</div>
+      <p class="ptext">You're on the <b>${s.youTower?'🏰 TOWER':'🌾 GROUND'}</b>. The computer is on the ${s.youTower?'ground':'tower'}.
+      ${s.youTower?'The ground archer moves first.':'You move first. Walk toward the tower, then shoot.'}</p>
+      <div class="streak">${pipsHTML(s.pw,this.WIN,'w')}<span class="mtxt">You ${s.pw} – ${s.cw} CPU</span>${pipsHTML(s.cw,this.WIN,'l')}</div>`,
+      [{label:'Fight! ⚔️',grow:true,fn:()=>{ hidePanel(); this.beginTurn(s.youTower?'cpu':'you'); }}]);
+    this.refresh();
+  },
+  beginTurn(who){
+    const s=this.s; s.turn=who; s.walked=0; s.walkDir=0; s.cpuAim=null;
+    if(who==='you') s.phase='aim';
+    else { s.phase='cpu'; s.cpuT=0; s.cpuStage='think'; s.cpuWalkTo=this.planWalk(); }
+    this.refresh();
+  },
+  planWalk(){
+    const s=this.s, me=s.cpu; if(this.onTower(me)) return me.x;
+    const reach=this.groundReachX()-1.5;
+    if(me.x>reach) return Math.max(this.MINX, me.x-this.WALK, reach-Math.random()*2);
+    return me.x;
+  },
+  solve(dx,dy,v){ const v2=v*v, disc=v2*v2-G*(G*dx*dx+2*dy*v2); if(disc<0) return null; return Math.atan2(v2-Math.sqrt(disc),G*dx); },
+  aimCPU(){
+    const s=this.s, me=s.cpu, tg=s.you, hd=this.hand(me);
+    const dx=Math.abs(tg.x-hd.x), dy=tg.y+this.BH/2-hd.y, n=++s.cpuShots;
+    let v=this.VMAX*0.96, th=this.solve(dx,dy,v);
+    if(th==null){ v=this.VMAX; th=this.solve(dx,dy,v); }
+    if(th==null) th=Math.atan(v*v/(G*dx));             // out of reach: best it can do
+    const k=Math.pow(0.6,n-1), sa=6*k+0.4, sv=(0.07*k+0.004)*v;
+    return {ang:clamp(th*180/Math.PI+gauss()*sa,-80,89), pow:clamp(v+gauss()*sv,6,this.VMAX)};
+  },
+  shoot(a,ang,pow){
+    const s=this.s, hd=this.hand(a), d=this.dir(a), r=ang*Math.PI/180;
+    s.shotNo++;
+    s.arrow={owner:a.who,x:hd.x,y:hd.y,vx:d*pow*Math.cos(r),vy:pow*Math.sin(r),ang,pow,trail:[{x:hd.x,y:hd.y}],tt:0,lt:0};
+    s.phase='flight'; s.walkDir=0; a.walking=false; this.refresh();
+  },
+  inBody(a,x,y){ return Math.abs(x-a.x)<=this.BW/2 && y>=a.y && y<=a.y+this.BH; },
+  resolve(kind,info){
+    const s=this.s, A=s.arrow, me=A.owner==='you'?s.you:s.cpu, opp=A.owner==='you'?s.cpu:s.you;
+    let res, dmg=0;
+    if(kind==='hit'){
+      const v=Math.hypot(A.vx,A.vy); dmg=Math.round(this.DMGK*v); opp.hp=Math.max(0,opp.hp-dmg); opp.flash=0.6;
+      s.hits[A.owner].push(v); res=`HIT · ${f1(v)} m/s`;
+      s.pops.push({x:opp.x,y:opp.y+this.BH+1.2,text:`−${dmg}  (${f1(v)} m/s)`,color:'#ff9b9b',t:0});
+    } else {
+      s.stuck.push({x:A.x,y:A.y,vx:A.vx,vy:A.vy}); if(s.stuck.length>24) s.stuck.shift();
+      if(kind==='wall') res='hit tower wall';
+      else if(kind==='top') res='landed on tower top';
+      else if(kind==='gone') res='flew off';
+      else if(this.onTower(opp)){ res = A.x<-this.TW ? 'flew over tower' : `fell ${f1(A.x)} m short`; }
+      else { const d=(A.x-opp.x)*this.dir(me); res = d<0 ? `${f1(-d)} m short` : `${f1(d)} m long`; }
+      s.pops.push({x:clamp(A.x,-8,s.d0+5),y:Math.max(A.y,0)+1.5,text:res,color:'#c8d4f0',t:0});
+    }
+    s.log.push({n:s.shotNo,who:A.owner,ang:A.ang,pow:A.pow,res,dmg,hit:kind==='hit'});
+    s.trails.push({owner:A.owner,pts:A.trail});
+    const mine=s.trails.filter(t=>t.owner==='you').slice(-3), theirs=s.trails.filter(t=>t.owner==='cpu').slice(-2);
+    s.trails=[...mine,...theirs];
+    s.arrow=null; s.phase='settle'; s.settleT=0; s.lastOwner=A.owner; this.refresh();
+  },
+  endRound(winner){
+    const s=this.s; if(winner==='you') s.pw++; else s.cw++;
+    s.phase='roundover'; this.refresh();
+    const over=s.pw>=this.WIN||s.cw>=this.WIN, avg=a=>a.length?f1(a.reduce((p,c)=>p+c,0)/a.length)+' m/s':'—';
+    const R=Math.round(this.towerRange()-this.TX), D=Math.round(this.groundReachX()-this.TX);
+    const noteRange=`<b>Range:</b> from the tower, a ${this.VMAX} m/s arrow can reach the ground about <b>${R} m</b> away. From the ground, the farthest away you can be and still hit someone on top of the ${this.T} m tower is only about <b>${D} m</b>. The ground archer has to walk into range while the tower archer is already shooting.`;
+    const noteSpeed=`<b>Impact speed:</b> tower arrows <b>speed up</b> as they fall, hitting at up to <b>${f1(this.vTowerHit())} m/s</b> (${Math.round(this.DMGK*this.vTowerHit())} damage). Ground arrows <b>slow down</b> as they climb, hitting at most <b>${f1(this.vGroundHit())} m/s</b> (${Math.round(this.DMGK*this.vGroundHit())} damage).`;
+    const note = over ? noteRange+'<br><br>'+noteSpeed : (s.round%2 ? noteRange : noteSpeed);
+    const role=s.youTower?'🏰 tower':'🌾 ground';
+    const head = winner==='you' ? `<span style="color:var(--good)">✅ You win round ${s.round}!</span>` : `<span style="color:var(--cpu)">❌ The computer wins round ${s.round}.</span>`;
+    let btns;
+    if(over && s.pw>=this.WIN){ mark(2);
+      btns=[{label:state.reflected[2]?'🏆 Get my completion code':'✍️ Answer 3 questions → get your code',grow:true,fn:()=>{ hidePanel(); afterMission(2); }},{label:'Duel again',secondary:true,fn:()=>{ this.newMatch(); this.roundIntro(); }}]; }
+    else if(over){ btns=[{label:'↻ Restart the duel',grow:true,fn:()=>{ this.newMatch(); this.roundIntro(); }}]; }
+    else btns=[{label:`Next round → you'll be on the ${s.youTower?'GROUND':'TOWER'}`,grow:true,fn:()=>{ s.round++; this.setupRound(); this.roundIntro(); }}];
+    showPanel(`<div class="banner">${over?(s.pw>=this.WIN?'<span style="color:var(--good)">🏆 You won the duel!</span>':'<span style="color:var(--cpu)">The computer won the duel.</span>'):head}</div>
+      <div class="streak">${pipsHTML(s.pw,this.WIN,'w')}<span class="mtxt">Best of 7 · You ${s.pw} – ${s.cw} CPU</span>${pipsHTML(s.cw,this.WIN,'l')}</div>
+      <div class="worked">You were on the <b>${role}</b>. Your hits: <b>${s.hits.you.length}</b> (avg ${avg(s.hits.you)}) · Computer hits: <b>${s.hits.cpu.length}</b> (avg ${avg(s.hits.cpu)})</div>
+      <div class="worked">🤔 <b>Did you notice?</b> ${note}</div>`, btns);
+  },
+  update(dt){
+    const s=this.s; s.clock+=dt;
+    [s.you,s.cpu].forEach(a=>{ a.flash=Math.max(0,a.flash-dt); });
+    s.pops.forEach(p=>p.t+=dt); s.pops=s.pops.filter(p=>p.t<1.8);
+    if(s.phase==='aim' && s.turn==='you' && !s.youTower){
+      s.you.walking=false;
+      if(s.walkDir && s.walked<this.WALK-1e-6){ const step=Math.min(this.WSPD*dt,this.WALK-s.walked);
+        const nx=clamp(s.you.x+s.walkDir*step,this.MINX,s.d0); s.walked+=Math.abs(nx-s.you.x); s.you.walking=nx!==s.you.x; s.you.x=nx; this.refreshLive(); }
+    }
+    if(s.phase==='cpu'){
+      const me=s.cpu; s.cpuT+=dt;
+      if(s.cpuStage==='think' && s.cpuT>0.7){ s.cpuStage = Math.abs(s.cpuWalkTo-me.x)>0.01 ? 'walk':'aim'; s.cpuT=0; this.refresh(); }
+      else if(s.cpuStage==='walk'){ const d=Math.sign(s.cpuWalkTo-me.x); me.x+=d*this.WSPD*dt; me.walking=true;
+        if((s.cpuWalkTo-me.x)*d<=0){ me.x=s.cpuWalkTo; me.walking=false; s.cpuStage='aim'; s.cpuT=0; this.refresh(); } this.refreshLive(); }
+      else if(s.cpuStage==='aim'){ if(!s.cpuAim) s.cpuAim=this.aimCPU(); if(s.cpuT>0.9) this.shoot(me,s.cpuAim.ang,s.cpuAim.pow); }
+    }
+    if(s.phase==='flight'){
+      const A=s.arrow, opp=A.owner==='you'?s.cpu:s.you; let rem=dt*this.TS; const step=1/240;
+      while(rem>1e-9 && s.arrow){ const h=Math.min(step,rem); rem-=h;
+        A.x+=A.vx*h; A.y+=A.vy*h-0.5*G*h*h; A.vy-=G*h; A.tt+=h;
+        if(A.tt-A.lt>0.03){ A.lt=A.tt; A.trail.push({x:A.x,y:A.y}); }
+        if(this.inBody(opp,A.x,A.y)){ this.resolve('hit'); break; }
+        if(A.x>-this.TW && A.x<0 && A.y<this.T){ A.trail.push({x:A.x,y:A.y}); this.resolve(A.y>this.T-0.4?'top':'wall'); break; }
+        if(A.y<=0){ A.y=0; A.trail.push({x:A.x,y:0}); this.resolve('ground'); break; }
+        if(A.x<-60||A.x>s.d0+60){ this.resolve('gone'); break; }
+      }
+    }
+    if(s.phase==='settle'){ s.settleT+=dt;
+      if(s.settleT>0.9){ if(s.you.hp<=0) this.endRound('cpu'); else if(s.cpu.hp<=0) this.endRound('you');
+        else this.beginTurn(s.lastOwner==='you'?'cpu':'you'); } }
+  },
+  setAimFromPoint(px,py){
+    const s=this.s, v=this.view; if(!v) return;
+    const hd=this.hand(s.you), hx=v.X(hd.x), hy=v.Y(hd.y), d=this.dir(s.you);
+    const dx=(px-hx)*d, dy=hy-py, L=Math.hypot(dx,dy); if(L<8) return;
+    s.aim.ang=clamp(Math.round(Math.atan2(dy,dx)*180/Math.PI),-80,89);
+    s.aim.pow=clamp(Math.round(L/v.AIMPX*this.VMAX*2)/2,5,this.VMAX); this.refreshLive();
+  },
+  pointer(type,x,y){ const s=this.s; if(s.phase!=='aim'||s.turn!=='you') return;
+    if(type==='down'){ this.dragging=true; this.setAimFromPoint(x,y); }
+    else if(type==='move' && this.dragging) this.setAimFromPoint(x,y);
+    else if(type==='up') this.dragging=false; },
+  key(k){ const s=this.s; if(k===' ' && s.phase==='aim' && s.turn==='you') this.shoot(s.you,s.aim.ang,s.aim.pow); },
+
+  dock(){
+    $('#dock').innerHTML=`
+    <div class="card"><h2>Mission 3 · Archer Duel</h2>
+      <div class="streak" id="p3Score"></div>
+      <div class="goal" id="p3Role" style="margin-top:6px"></div>
+      <div class="givens">
+        <div class="given"><div class="k">Tower height</div><div class="v">${this.T} m</div></div>
+        <div class="given"><div class="k">Max bow speed</div><div class="v">${this.VMAX} m/s</div></div>
+        <div class="given"><div class="k">Ground archer to tower</div><div class="v" id="p3Dist">—</div></div>
+      </div>
+      <div class="hintline">Damage = 1.5 × arrow speed at impact · g = 9.8 m/s² · no air resistance</div></div>
+    <div class="card"><h2>Your bow</h2>
+      <div class="ctrl"><div class="lab"><div class="t">Angle</div><div class="u">above (+) or below (−) level</div></div>
+        <div class="stepper"><button class="stepbtn" id="p3AD">−</button><div class="val"><span id="p3A">0</span><br><small>degrees</small></div><button class="stepbtn" id="p3AU">+</button></div></div>
+      <div class="ctrl"><div class="lab"><div class="t">Launch speed</div><div class="u">max ${this.VMAX} m/s</div></div>
+        <div class="stepper"><button class="stepbtn" id="p3PD">−</button><div class="val"><span id="p3P">0</span><br><small>m/s</small></div><button class="stepbtn" id="p3PU">+</button></div></div>
+      <div id="p3WalkBox"><div class="walkrow"><button class="btn secondary walkbtn" id="p3WL">◀ Walk toward tower</button><button class="btn secondary walkbtn" id="p3WR">Back up ▶</button></div>
+        <div class="walkleft" id="p3WalkLeft"></div></div>
+      <button class="btn big" id="p3Shoot">🏹 SHOOT</button>
+      <div class="status" id="p3Status"></div></div>
+    <div class="card"><h2>Duel log (this match)</h2>
+      <table class="log"><thead><tr><th>#</th><th>Who</th><th>Angle</th><th>Speed</th><th>Result</th><th>Dmg</th></tr></thead><tbody id="p3Log"></tbody></table>
+      <div class="emptylog" id="p3Empty">Every arrow will show up here.</div></div>`;
+    const can=()=>this.s.phase==='aim'&&this.s.turn==='you';
+    holdBtn($('#p3AD'),()=>{ if(can()){ this.s.aim.ang=clamp(this.s.aim.ang-1,-80,89); this.refreshLive(); } });
+    holdBtn($('#p3AU'),()=>{ if(can()){ this.s.aim.ang=clamp(this.s.aim.ang+1,-80,89); this.refreshLive(); } });
+    holdBtn($('#p3PD'),()=>{ if(can()){ this.s.aim.pow=clamp(this.s.aim.pow-0.5,5,this.VMAX); this.refreshLive(); } });
+    holdBtn($('#p3PU'),()=>{ if(can()){ this.s.aim.pow=clamp(this.s.aim.pow+0.5,5,this.VMAX); this.refreshLive(); } });
+    const walk=(el,d)=>{ el.addEventListener('pointerdown',e=>{ e.preventDefault(); if(can()) this.s.walkDir=d; });
+      ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,()=>{ this.s.walkDir=0; })); };
+    walk($('#p3WL'),-1); walk($('#p3WR'),1);
+    $('#p3Shoot').onclick=()=>{ if(can()) this.shoot(this.s.you,this.s.aim.ang,this.s.aim.pow); };
+  },
+  refreshLive(){
+    const s=this.s; if(!s||!$('#p3A')) return;
+    const can=s.phase==='aim'&&s.turn==='you';
+    $('#p3A').textContent=(s.aim.ang>0?'+':'')+s.aim.ang; $('#p3P').textContent=f1(s.aim.pow);
+    const gx=s.youTower?s.cpu.x:s.you.x; $('#p3Dist').textContent=Math.round(gx)+' m';
+    $('#p3WalkLeft').textContent=`${f1(Math.max(0,this.WALK-s.walked))} m of walking left this turn (hold a button)`;
+    $('#p3WL').disabled=!can||s.walked>=this.WALK-1e-6||s.you.x<=this.MINX; $('#p3WR').disabled=!can||s.walked>=this.WALK-1e-6||s.you.x>=s.d0;
+  },
+  refresh(){
+    const s=this.s; if(!s||!$('#p3A')) return;
+    const can=s.phase==='aim'&&s.turn==='you';
+    $('#p3Score').innerHTML=`${pipsHTML(s.pw,this.WIN,'w')}<span class="mtxt">Round ${s.round} of 7 · You ${s.pw} – ${s.cw} CPU</span>${pipsHTML(s.cw,this.WIN,'l')}`;
+    $('#p3Role').innerHTML=`You're on the <b>${s.youTower?'🏰 TOWER':'🌾 GROUND'}</b> this round. Win <b>${this.WIN} rounds</b> to clear the mission.`;
+    ['#p3AD','#p3AU','#p3PD','#p3PU','#p3Shoot'].forEach(id=>$(id).disabled=!can);
+    setStageBtn(can?'🏹 SHOOT':null,()=>{ if(this.s.phase==='aim'&&this.s.turn==='you') this.shoot(this.s.you,this.s.aim.ang,this.s.aim.pow); });
+    $('#p3WalkBox').style.display=s.youTower?'none':'block';
+    const st={ready:'',aim:s.youTower?'Your turn: aim and shoot.':'Your turn: walk (optional), then aim and shoot.',
+      cpu:s.cpuStage==='walk'?'Computer is walking…':'Computer is aiming…',flight:'Arrow in flight…',settle:'',roundover:''}[s.phase]||'';
+    $('#p3Status').textContent=st;
+    const tb=$('#p3Log'); tb.innerHTML=''; $('#p3Empty').style.display=s.log.length?'none':'block';
+    s.log.slice(-8).reverse().forEach(e=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${e.n}</td><td style="color:${e.who==='you'?'#ffd166':'#ff8b9b'}">${e.who==='you'?'You':'CPU'}</td><td>${Math.round(e.ang)}°</td><td>${f1(e.pow)}</td><td class="${e.hit?'ok':''}" style="${e.hit?'':'color:var(--muted)'}">${e.res}</td><td>${e.dmg||''}</td>`;
+      tb.appendChild(tr); });
+    this.refreshLive();
+  },
+
+  draw(){
+    const s=this.s, w=W, h=H, span=s.d0+15;
+    const sc=Math.min(w/span,(h-40)/28), gy=h-24, ox=(w-span*sc)/2+9*sc;
+    const X=x=>ox+x*sc, Y=y=>gy-y*sc;
+    const AIMPX=clamp(Math.min(w,h)*0.35,90,200);
+    this.view={X,Y,sc,AIMPX};
+    // sky & hills
+    let gr=g.createLinearGradient(0,0,0,gy); gr.addColorStop(0,'#1d3a6e'); gr.addColorStop(1,'#8fb7d9');
+    g.fillStyle=gr; g.fillRect(0,0,w,gy);
+    g.fillStyle='rgba(60,110,80,.55)'; g.beginPath(); g.moveTo(0,gy);
+    for(let x=0;x<=w;x+=10) g.lineTo(x,gy-28-18*Math.sin(x*0.008+1)-10*Math.sin(x*0.021)); g.lineTo(w,gy); g.fill();
+    g.fillStyle='#3f7a3a'; g.fillRect(0,gy,w,h-gy); g.fillStyle='#57994c'; g.fillRect(0,gy,w,3);
+    for(let m=10; X(m)<w-10; m+=10){ const px=X(m); g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=1; line(px,gy,px,gy+6);
+      txt(m+' m',px,gy+15,{size:10,color:'rgba(235,245,235,.85)',align:'center'}); }
+    // tower
+    const tl=X(-this.TW), tr=X(0), tt=Y(this.T);
+    g.fillStyle='#7d7f8a'; g.fillRect(tl,tt,tr-tl,gy-tt);
+    g.save(); g.beginPath(); g.rect(tl,tt,tr-tl,gy-tt); g.clip(); g.strokeStyle='rgba(40,40,50,.45)'; g.lineWidth=1;
+    for(let r=0,y=0;y<this.T;y+=0.9,r++){ line(tl,Y(y),tr,Y(y)); for(let x=-this.TW+(r%2?0.6:0);x<0;x+=1.25) line(X(x),Y(y),X(x),Y(y+0.9)); }
+    g.restore();
+    g.fillStyle='#5f616c'; for(let x=-this.TW;x<-2.6;x+=0.9) g.fillRect(X(x),Y(this.T+0.8),0.55*sc,0.8*sc);
+    g.fillStyle='#4a4c56'; g.fillRect(tl-2,tt-2,tr-tl+4,4);
+    g.fillStyle='#3a2616'; rr(X(-3.2),Y(2.4),1.4*sc,2.4*sc,Math.max(2,0.6*sc)); g.fill();
+    const towerOwner=s.youTower?s.you:s.cpu;
+    g.strokeStyle='#3a3a3a'; g.lineWidth=2; line(X(-4.4),Y(this.T),X(-4.4),Y(this.T+4));
+    g.fillStyle=towerOwner.color; const wv=Math.sin(s.clock*4)*0.25; g.beginPath(); g.moveTo(X(-4.4),Y(this.T+4)); g.lineTo(X(-2.6),Y(this.T+3.6+wv)); g.lineTo(X(-4.4),Y(this.T+3.2)); g.closePath(); g.fill();
+    txt(this.T+' m',tl-6,Y(this.T/2),{size:11,color:'#eaf0ff',align:'right',bold:true,bg:'rgba(10,16,32,.6)'});
+    // previous trails
+    s.trails.forEach((t,i)=>{ g.strokeStyle=t.owner==='you'?'rgba(255,209,102,.45)':'rgba(255,90,110,.4)'; g.setLineDash([4,5]); g.lineWidth=1.3;
+      g.beginPath(); t.pts.forEach((p,j)=>j?g.lineTo(X(p.x),Y(p.y)):g.moveTo(X(p.x),Y(p.y))); g.stroke(); g.setLineDash([]); });
+    // stuck arrows
+    s.stuck.forEach(a=>this.arrowGfx(X(a.x),Y(a.y),a.vx,a.vy,sc,'#d8c7a0'));
+    // archers
+    const aimFor=a=>a.who==='you'?s.aim.ang:(s.cpuAim&&s.phase==='cpu'?s.cpuAim.ang:(this.onTower(a)?0:35));
+    [s.you,s.cpu].forEach(a=>this.archer(a,X,Y,sc,aimFor(a),s.clock));
+    // your aim line
+    if(s.phase==='aim'&&s.turn==='you'){ const hd=this.hand(s.you), hx=X(hd.x), hy=Y(hd.y), d=this.dir(s.you), r=s.aim.ang*Math.PI/180;
+      const L=s.aim.pow/this.VMAX*AIMPX, ex=hx+d*Math.cos(r)*L, ey=hy-Math.sin(r)*L;
+      g.strokeStyle='rgba(255,209,102,.9)'; g.lineWidth=2.5; line(hx,hy,ex,ey);
+      const ah=Math.atan2(ey-hy,ex-hx); g.fillStyle='#ffd166'; g.beginPath(); g.moveTo(ex,ey);
+      g.lineTo(ex-10*Math.cos(ah-0.4),ey-10*Math.sin(ah-0.4)); g.lineTo(ex-10*Math.cos(ah+0.4),ey-10*Math.sin(ah+0.4)); g.closePath(); g.fill();
+      txt(`${s.aim.ang}° · ${f1(s.aim.pow)} m/s`,ex+d*8,ey-12,{size:12,bold:true,color:'#ffd166',align:d>0?'left':'right',bg:'rgba(10,16,32,.7)'}); }
+    if(s.phase==='cpu'&&s.cpuStage==='aim'&&s.cpuAim){ const hd=this.hand(s.cpu), hx=X(hd.x), hy=Y(hd.y), d=this.dir(s.cpu), r=s.cpuAim.ang*Math.PI/180, L=s.cpuAim.pow/this.VMAX*AIMPX*Math.min(1,s.cpuT/0.5);
+      g.strokeStyle='rgba(255,90,110,.8)'; g.lineWidth=2; line(hx,hy,hx+d*Math.cos(r)*L,hy-Math.sin(r)*L); }
+    // flying arrow
+    if(s.arrow){ const A=s.arrow; g.strokeStyle=A.owner==='you'?'rgba(255,209,102,.8)':'rgba(255,90,110,.8)'; g.lineWidth=1.5;
+      g.beginPath(); A.trail.forEach((p,j)=>j?g.lineTo(X(p.x),Y(p.y)):g.moveTo(X(p.x),Y(p.y))); g.lineTo(X(A.x),Y(A.y)); g.stroke();
+      if(Y(A.y)<4){ g.fillStyle=A.owner==='you'?'#ffd166':'#ff5a6e'; const px=X(A.x); g.beginPath(); g.moveTo(px,3); g.lineTo(px-6,13); g.lineTo(px+6,13); g.closePath(); g.fill();
+        txt(Math.round(A.y)+' m high',px,24,{size:10,color:'#fff',align:'center',bg:'rgba(10,16,32,.7)'}); }
+      else this.arrowGfx(X(A.x),Y(A.y),A.vx,A.vy,sc,'#fff'); }
+    // popups
+    s.pops.forEach(p=>txt(p.text,X(p.x),Y(p.y)-p.t*18,{size:12,bold:true,color:p.color,align:'center',bg:`rgba(10,16,32,${0.75*(1-p.t/1.8)})`}));
+    // HUD
+    txt(`Round ${s.round} of 7 · You ${s.pw} – ${s.cw} CPU`,12,16,{size:13,bold:true,color:'#ffd166',bg:'rgba(10,16,32,.7)'});
+    const turnTxt = s.phase==='aim'&&s.turn==='you' ? (s.youTower?'Drag on the scene to aim':'Walk (buttons below), drag to aim')
+      : s.phase==='cpu' ? 'Computer’s turn…' : s.phase==='flight' ? '' : '';
+    if(turnTxt) txt(turnTxt,w/2,s.phase==='aim'?72:16,{size:13,bold:true,color:s.turn==='you'?'#ffd166':'#ff8b9b',align:'center',bg:'rgba(10,16,32,.75)'});
+  },
+  arrowGfx(px,py,vx,vy,sc,color){ const a=Math.atan2(-vy,vx), L=Math.max(12,0.9*sc);
+    g.save(); g.translate(px,py); g.rotate(a); g.strokeStyle=color; g.lineWidth=2; line(-L,0,0,0);
+    g.fillStyle=color; g.beginPath(); g.moveTo(2,0); g.lineTo(-4,-3); g.lineTo(-4,3); g.closePath(); g.fill();
+    g.strokeStyle='#ff9f43'; g.lineWidth=1.5; line(-L,0,-L-3,-3); line(-L,0,-L-3,3); g.restore(); },
+  archer(a,X,Y,sc,ang,t){
+    const k=Math.max(sc,7), px=X(a.x), py=Y(a.y), d=this.dir(a);
+    g.save(); g.translate(px,py); g.lineCap='round';
+    const P=(x,y)=>[d*x*k,-y*k], L=(p,q)=>line(p[0],p[1],q[0],q[1]), sw=a.walking?Math.sin(t*12)*0.15:0;
+    g.strokeStyle='#2a2f3d'; g.lineWidth=Math.max(2,0.12*k); L(P(0,0.9),P(0.14+sw,0)); L(P(0,0.9),P(-0.12-sw,0));
+    g.strokeStyle=a.flash>0&&Math.floor(t*20)%2?'#ffffff':a.color; g.lineWidth=Math.max(3,0.3*k); L(P(0,0.95),P(0,1.42));
+    g.fillStyle='#f1c27d'; const hd=P(0,1.62); dot(hd[0],hd[1],Math.max(2.5,0.16*k));
+    g.fillStyle=a.color; g.beginPath(); g.arc(hd[0],hd[1]-1,Math.max(2.8,0.18*k),Math.PI,0); g.fill();
+    const r=ang*Math.PI/180, sh=P(0,1.38), bx=sh[0]+d*Math.cos(r)*0.45*k, by=sh[1]-Math.sin(r)*0.45*k;
+    g.strokeStyle='#f1c27d'; g.lineWidth=Math.max(1.5,0.08*k); line(sh[0],sh[1],bx,by);
+    const ba=Math.atan2(-Math.sin(r),d*Math.cos(r)); g.strokeStyle='#8b5a2b'; g.lineWidth=Math.max(1.5,0.08*k);
+    g.beginPath(); g.arc(bx-Math.cos(ba)*0.3*k,by-Math.sin(ba)*0.3*k,0.55*k,ba-1.05,ba+1.05); g.stroke();
+    g.restore();
+    // hp bar + name
+    const bw=46, bh=6, bx0=px-bw/2, by0=Y(a.y+this.BH)-Math.max(12,0.5*sc)-8;
+    g.fillStyle='rgba(10,16,32,.8)'; rr(bx0-2,by0-2,bw+4,bh+4,3); g.fill();
+    const f=a.hp/this.HP; g.fillStyle=f>0.5?'#2fbf57':f>0.25?'#ffd166':'#e6294b'; g.fillRect(bx0,by0,bw*f,bh);
+    txt(`${a.name} ${a.hp}`,px,by0-9,{size:11,bold:true,color:a.color,align:'center'});
+  }
+};
+
+/* ---------- mission switching, tabs, loop ---------- */
+const PARTS=[P1,P2,P3];
+const TABINFO=[['📦','Warehouse Drop','fall time depends on height'],['🏴‍☠️','Pirate Cannon','horizontal launch: match the speed'],['🏹','Archer Duel','angle, range & impact speed']];
+function renderTabs(){
+  $('#tabs').innerHTML='';
+  TABINFO.forEach(([em,nm,eq],i)=>{ const lock=!unlocked(i);
+    const el=document.createElement('div'); el.className='tab'+(i===state.pi?' sel':'')+(lock?' locked':'');
+    el.innerHTML=`<span class="badge">${done(i)?'✅':state.won[i]?'✍️':(lock?'🔒':'')}</span><div class="n">Mission ${i+1}</div><div class="nm">${em} ${nm}</div><div class="eq">${eq}</div>`;
+    el.onclick=()=>{ if(lock){ if(i>0&&state.won[i-1]&&!state.reflected[i-1]) openReflection(i-1,()=>switchPart(i)); return; }
+      if(i!==state.pi) switchPart(i); };
+    $('#tabs').appendChild(el); });
+  const m=$('#medals'); m.innerHTML='';
+  state.won.forEach((w,i)=>{ const d=document.createElement('div'); d.className='medal'+(done(i)?' won':''); d.textContent=done(i)?'★':w?'✍':(i+1); m.appendChild(d); });
+}
+function switchPart(i){ if(!unlocked(i)) return; hidePanel(); setStageBtn(null); state.pi=i; renderTabs(); PARTS[i].enter(); }
+
+const cur=()=>PARTS[state.pi];
+function ptr(type,e){ const r=cv.getBoundingClientRect(); cur().pointer(type,e.clientX-r.left,e.clientY-r.top); }
+cv.addEventListener('pointerdown',e=>{ e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} ptr('down',e); });
+cv.addEventListener('pointermove',e=>ptr('move',e));
+cv.addEventListener('pointerup',e=>ptr('up',e)); cv.addEventListener('pointercancel',e=>ptr('up',e));
+window.addEventListener('keydown',e=>{ if(e.key===' ' && !document.querySelector('.modal.show') && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)){ e.preventDefault(); cur().key(' '); } });
+
+let last=performance.now();
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
+  fit(); const P=cur(); if(P.s){ P.update(dt); g.clearRect(0,0,W,H); P.draw(); }
+  requestAnimationFrame(frame); }
+
+/* ---------- reflection questions ---------- */
+const RMIN=80, RMAX=400;
+const REFLECT=[
+  {title:'Warehouse Drop', qs:[
+    {q:'Why did you have to let go of the package before the robot was directly under you?',
+     kw:['time','fall','fell','drop','robot','mov','distance','far','before','early','earl','speed','second','take','took','gravity','ahead','away']},
+    {q:'How did your timing change when the shelf was higher? Use your drop log to explain why.',
+     kw:['high','height','tall','shelf','earl','soon','long','time','fall','distance','far','further','log','meter','second','more','less','later']},
+    {q:'Find two drops in your log where one height was about four times the other (like 4 m and 16 m). Was the fall time also four times longer? What does that tell you about the package’s speed as it falls?',
+     kw:['time','twice','double','four','fast','speed','accelerat','gravity','fall','long','quick','slow','half','same','constant','increas','pick']}]},
+  {title:'Pirate Cannon', qs:[
+    {q:'What cannon speed hit the shark every time, no matter how high the cannon was? Why does that work?',
+     kw:['same','match','equal','speed','shark','fast','horizontal','sideways','above','together','velocity','rate']},
+    {q:'While the cannonball was falling, what happened to its sideways (horizontal) speed? What was gravity doing to the ball the whole time?',
+     kw:['same','constant','chang','stay','horizontal','sideways','gravity','down','pull','fast','vertical','accelerat','speed','velocity']},
+    {q:'Suppose the cannon were twice as high but still fired at the shark’s speed. Would it still hit? Explain what would change and what would stay the same.',
+     kw:['yes','still','hit','time','long','fall','far','same','speed','high','height','chang','stay','shark','miss']}]},
+  {title:'Archer Duel', qs:[
+    {q:'Which spot gave an archer the advantage: the tower or the ground? Give at least two reasons based on what happened in your duel.',
+     kw:['tower','ground','high','height','range','far','reach','damage','hard','fast','speed','close','walk','advantage','top']},
+    {q:'Arrows shot down from the tower hit harder than arrows shot up at the tower, even at the same launch speed. Explain why, using what gravity does to an arrow going up versus coming down.',
+     kw:['gravity','speed','fast','slow','down','fall','climb','accelerat','pull','velocity','hard','damage','energy','up']},
+    {q:'How did you use the angle and launch speed to zero in on the other archer? Describe what happened to the arrow’s path when you raised or lowered the angle.',
+     kw:['angle','speed','high','low','raise','up','down','path','arc','far','short','long','degree','curve','adjust','power','chang','steep','flat']}]}
+];
+
+/* A small built-in "is this a genuine answer?" check. It does NOT judge correctness. It rejects keyboard mashing,
+   non-words, word salad, repeated words, copying the question, reusing another answer, and off-topic filler. */
+const FUNC=new Set(('a an the and or but so because since if when whenever then than that this these those it its is are was were be been being to of in on at by for with from as into onto up down out over under off i you he she we they me my your our their them his her us not no yes do does did dont doesnt didnt can could would should will wont cant cannot has have had more less most least very also just only all each every any some which what why how where who there here about after before while until both same other another one two three four five much many way get gets got make makes made go goes went going take takes took see saw seen need needs needed like think thought know knew still even too really again would might must lot bit').split(' '));
+const COMMON=new Set(('time second meter height high low tall shelf package box robot floor drop fall fell fallen speed fast slow quick far distance away close near ahead behind early late soon long short gravity pull force accelerate acceleration velocity constant change stay same equal match sideways horizontal vertical straight direction path arc curve cannon ball cannonball shark ship water hit miss land archer arrow bow tower ground angle degree launch power range reach damage hard advantage enemy computer cpu shot shoot aim position spot top bottom above below directly exactly start end first last next half double twice triple times whole always never sometimes usually mission log data notice pattern answer mean reason move motion keep come use try adjust increase decrease raise lower big small new right left wrong correct better best worse good bad enough under over moving because level got put gave give given let fly flew path higher lower faster slower farther further earlier later longer shorter bigger smaller harder easier easy guess figure found find learn learned realize show showed shows help number amount point place side edge thing things something anything everything nothing person people player other opponent robot ones also each kept kind stays every went stayed changed kept way ways question depend depends affect affects cause causes result results energy pick picked up down around through across toward towards against without between during goes going falls falling fell dropped dropping moves moved hits hitting shooting shot landed landing matched matching'.split(' ')));
+function stemOk(w){ if(FUNC.has(w)||COMMON.has(w)) return true;
+  for(const suf of ['s','es','ed','d','ing','ly','er','est','ier','iest','ation']){ if(w.length>suf.length+2 && w.endsWith(suf)){
+    const b=w.slice(0,-suf.length); if(COMMON.has(b)||COMMON.has(b+'e')||FUNC.has(b)) return true;
+    if(suf==='ing'||suf==='ed'){ const bb=b.slice(0,-1); if(b.length>2&&b[b.length-1]===b[b.length-2]&&COMMON.has(bb)) return true; } } }
+  return false; }
+const wordlike=w=>w.length<=18 && /[aeiouy]/.test(w) && !/[bcdfghjklmnpqrstvwxz]{5,}/.test(w) && !/(.)\1\1/.test(w);
+const wordsOf=t=>(t.toLowerCase().replace(/[’']/g,'').match(/[a-z]+/g)||[]);
+function checkAnswer(text,q,others){
+  const s=text.trim(), n=s.length, bad=msg=>({ok:false,msg});
+  if(n<RMIN) return {ok:false,soft:true,msg:`Keep going: at least ${RMIN} characters.`};
+  if(n>RMAX) return bad(`Too long: ${RMAX} characters max.`);
+  const low=s.toLowerCase().replace(/[’']/g,''), words=wordsOf(s), toks=low.match(/[a-z]+|\d+(\.\d+)?/g)||[];
+  if(toks.length<12) return bad('Write at least 12 words, in complete sentences.');
+  if(/([a-z])\1{3,}/.test(low)) return bad('Looks like a key got held down. Please fix that part.');
+  if(/asdf|qwert|zxcv|hjkl|lorem|ipsum|blah|\bidk\b|\bnothing to say\b/.test(low)) return bad('Please write a real answer in your own words.');
+  const uniq=new Set(words);
+  if(uniq.size/words.length<0.45) return bad('You’re repeating the same words a lot. Explain your idea in full sentences.');
+  const known=words.filter(stemOk).length, weird=words.filter(w=>!stemOk(w)&&!wordlike(w)).length;
+  if(weird/words.length>0.15 || known/words.length<0.35) return bad('This doesn’t read like real sentences. Check your spelling and write in plain English.');
+  if(new Set(words.filter(w=>FUNC.has(w))).size<3) return bad('Write complete sentences, not just a list of words.');
+  const qw=new Set(wordsOf(q.q)), content=words.filter(w=>!FUNC.has(w));
+  if(content.length && content.filter(w=>qw.has(w)).length/content.length>0.8) return bad('Don’t just repeat the question. Answer it in your own words.');
+  for(const o of others){ const ow=new Set(wordsOf(o)); if(ow.size<6) continue;
+    let inter=0; uniq.forEach(w=>{ if(ow.has(w)) inter++; });
+    if(inter/(uniq.size+ow.size-inter)>0.7) return bad('This is almost the same as another answer. Each question needs its own answer.'); }
+  if(!words.some(w=>q.kw.some(k=>w.startsWith(k)))) return bad(`Connect it to the mission: talk about things like ${q.kw.slice(0,3).join(', ')}…`);
+  return {ok:true,msg:'✓ Looks complete'};
+}
+let refCtx=null;
+function openReflection(i,after){
+  const m=REFLECT[i]; refCtx={i,after};
+  $('#refTitle').textContent=`Mission ${i+1} reflection: ${m.title}`;
+  $('#refLimits').textContent=`${RMIN}–${RMAX}`;
+  $('#refQs').innerHTML=m.qs.map((q,j)=>`<div class="refq" id="rq${j}"><div class="qn">Question ${j+1} of ${m.qs.length}</div><div class="qt">${q.q}</div>
+    <textarea class="field" id="rta${j}" maxlength="${RMAX}" rows="4" placeholder="Type your answer here…"></textarea>
+    <div class="refmeta"><span class="cnt" id="rcnt${j}"></span><span class="chk" id="rchk${j}"></span></div></div>`).join('');
+  m.qs.forEach((q,j)=>{ const ta=$('#rta'+j); ta.value=state.answers[i][j]||'';
+    ta.addEventListener('input',()=>{ state.answers[i][j]=ta.value; save(); refCheck(false); }); });
+  $('#refTip').textContent=''; refCheck(false);
+  $('#refModal').classList.add('show'); $('#refModal .modalbox').scrollTop=0;
+}
+function refCheck(force){
+  const {i}=refCtx, m=REFLECT[i]; let good=0; const res=[];
+  m.qs.forEach((q,j)=>{ const others=[]; state.answers.forEach((a,x)=>a.forEach((t,y)=>{ if(!(x===i&&y===j)&&t.trim()) others.push(t); }));
+    const t=state.answers[i][j]||'', r=checkAnswer(t,q,others); res.push(r); if(r.ok) good++;
+    $('#rcnt'+j).textContent=`${t.trim().length} / ${RMAX} characters${t.trim().length<RMIN?` (need ${RMIN}+)`:''}`;
+    const chk=$('#rchk'+j), show=r.ok||!r.soft||force;
+    chk.textContent=show?r.msg:''; chk.className='chk'+(r.ok?' ok':show?' bad':'');
+    $('#rq'+j).classList.toggle('good',r.ok); });
+  $('#refSubmit').textContent=good===m.qs.length?'Submit answers →':`Submit answers (${good}/${m.qs.length} ready)`;
+  if(good===m.qs.length) $('#refTip').textContent='';
+  return res;
+}
+$('#refSubmit').onclick=()=>{ const res=refCheck(true), badIdx=res.findIndex(r=>!r.ok);
+  if(badIdx>=0){ const left=res.filter(r=>!r.ok).length;
+    $('#refTip').textContent=`${left} answer${left>1?'s':''} still need${left>1?'':'s'} work before you can continue.`;
+    $('#rq'+badIdx).scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  const {i,after}=refCtx; state.answers[i]=state.answers[i].map(a=>a.trim()); state.reflected[i]=true; save();
+  $('#refModal').classList.remove('show'); renderTabs(); refCtx=null; after&&after(); };
+$('#refLater').onclick=()=>{ save(); $('#refModal').classList.remove('show'); refCtx=null; };
+function finishAll(){ const miss=[0,1,2].find(i=>!state.reflected[i]); if(miss!==undefined) openReflection(miss,finishAll); else showWin(); }
+function afterMission(i){ const go=i===0?()=>switchPart(1):i===1?()=>switchPart(2):finishAll;
+  if(state.reflected[i]) go(); else openReflection(i,go); }
+
+/* ---------- completion code ---------- */
+function letter(c){ c=(c||'').toUpperCase(); return /[A-Z]/.test(c)?c:'X'; }
+function initials(name){ const p=name.trim().split(/\s+/).filter(Boolean);
+  const a=letter((p[0]||'')[0]); const b=letter(p.length>1?(p[p.length-1]||'')[0]:((p[0]||'')[1]||(p[0]||'')[0])); return [a,b]; }
+function makeCode(name){ const [i1,i2]=initials(name);
+  const cs='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; const r=()=>cs[Math.floor(Math.random()*cs.length)];
+  return [r(),r(),i1,r(),r(),i2,r(),r()].join(''); }
+/* Google Form "Turn it in". Paste the form's PRE-FILLED link here, made by typing these placeholders into
+   the matching questions: NAME, CODE, M1Q1, M1Q2, M1Q3, M2Q1, M2Q2, M2Q3, M3Q1, M3Q2, M3Q3.
+   The entry IDs are read from the link automatically. Leave it blank to hide the button. */
+const FORM_PREFILL_LINK='https://docs.google.com/forms/d/e/1FAIpQLSfaPk5iWryEECEiQWO4A1063tO_5uT7F3o_raE6qsyURYieqw/viewform?usp=pp_url&entry.2072631698=NAME&entry.1611661514=CODE&entry.1246445419=M1Q1&entry.1308644528=M1Q2&entry.1451625936=M1Q3&entry.1109686736=M2Q1&entry.569591556=M2Q2&entry.1678652621=M2Q3&entry.390354261=M3Q1&entry.916460197=M3Q2&entry.1202714188=M3Q3';
+const FORM=(()=>{ if(!FORM_PREFILL_LINK) return null;
+  try{ const u=new URL(FORM_PREFILL_LINK), map={};
+    u.searchParams.forEach((v,k)=>{ if(/^entry\.\d+$/.test(k)) map[v.trim().toUpperCase()]=k; });
+    return {base:u.origin+u.pathname, map}; }catch(e){ return null; } })();
+function turnInURL(name,code){
+  const q=new URLSearchParams({usp:'pp_url'}), put=(key,val)=>{ if(FORM.map[key]) q.append(FORM.map[key],val); };
+  put('NAME',name); put('CODE',code);
+  // plain-ASCII punctuation keeps the link short (Google rejects prefilled links over ~8,000 characters)
+  const plain=t=>t.trim().replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\u2026/g,'...').replace(/\s+/g,' ');
+  state.answers.forEach((arr,i)=>arr.forEach((a,j)=>put(`M${i+1}Q${j+1}`,plain(a))));
+  return FORM.base+'?'+q.toString(); }
+function answersText(){ return REFLECT.map((m,i)=>`MISSION ${i+1}: ${m.title}\n`+m.qs.map((q,j)=>`Q${j+1}. ${q.q}\n${state.answers[i][j].trim()}`).join('\n\n')).join('\n\n'); }
+let lastName='', lastCode='';
+function showWin(){ $('#nameField').value=''; $('#nameErr').textContent=''; $('#nameModal').classList.add('show'); setTimeout(()=>$('#nameField').focus(),50); }
+$('#codeBtn').onclick=()=>{ const name=$('#nameField').value.trim();
+  if(name.replace(/[^A-Za-z]/g,'').length<2){ $('#nameErr').textContent='Please enter your first and last name.'; return; }
+  lastName=name; lastCode=makeCode(name); $('#winName').textContent=name.split(/\s+/)[0];
+  $('#codeOut').textContent=lastCode; $('#nameModal').classList.remove('show'); $('#winModal').classList.add('show');
+  if(FORM){ $('#turninBtn').style.display='block'; $('#turninNote').innerHTML='Tapping <b>Turn it in</b> opens your class form with your name, code, and all 9 answers already filled in. Just press <b>Submit</b>. (No form opens? Screenshot this page and tap <b>Copy my answers</b>.) Your initials are in the <b>3rd</b> and <b>6th</b> spots.'; } };
+$('#nameField').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#codeBtn').click(); });
+$('#turninBtn').onclick=()=>{ if(!lastCode||!FORM) return; const url=turnInURL(lastName,lastCode);
+  if(url.length>7800){ alert('Your answers are too long to send automatically. Tap "Copy my answers" and paste them into the form instead.'); window.open(FORM.base,'_blank','noopener'); return; }
+  window.open(url,'_blank','noopener'); };
+$('#copyAnsBtn').onclick=()=>{ const t=`${lastName} · ${lastCode}\n\n`+answersText();
+  const ok=()=>{ $('#copyAnsBtn').textContent='Copied ✓'; setTimeout(()=>$('#copyAnsBtn').textContent='Copy my answers',1400); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok,ok); else ok(); };
+$('#copyBtn').onclick=()=>{ const code=$('#codeOut').textContent;
+  const done=()=>{ $('#copyBtn').textContent='Copied ✓'; setTimeout(()=>$('#copyBtn').textContent='Copy code',1400); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done,done); else done(); };
+$('#againBtn').onclick=()=>{ $('#winModal').classList.remove('show'); if(state.pi!==2) switchPart(2); else { P3.newMatch(); P3.dock(); P3.roundIntro(); } };
+
+/* ---------- misc ---------- */
+function showIntro(){ $('#intro').classList.add('show'); }
+function hideIntro(){ $('#intro').classList.remove('show'); }
+$('#helpBtn').onclick=showIntro;
+$('#startPlay').onclick=hideIntro;
+$('#intro').onclick=e=>{ if(e.target.id==='intro') hideIntro(); };
+$('#teacherBtn').onclick=()=>{ const p=prompt('Teacher passcode (unlocks every mission on this device until reload):');
+  if(p==null) return; if(p.trim()==='1253'){ state.teacher=true; renderTabs(); } else alert('That passcode is not right.'); };
+
+state.pi = done(1)?2 : done(0)?1 : 0;
+renderTabs(); PARTS[state.pi].enter();
+requestAnimationFrame(frame);
+showIntro();   // instructions appear automatically on a fresh load
+window.__pm={state,P1,P2,P3,switchPart,makeCode,initials,checkAnswer,REFLECT,openReflection,turnInURL,answersText};
+</script>
+</body>
+</html>
