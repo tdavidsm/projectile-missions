@@ -215,6 +215,15 @@
   <button class="btn" id="startPlay" style="width:100%;margin-top:14px">Start the missions 🎯</button>
 </div></div>
 
+<!-- teacher unlock (in-page: some browsers and embeds block prompt()) -->
+<div class="modal" id="teacherModal"><div class="modalbox" style="max-width:420px">
+  <h2 style="margin-bottom:6px">🔑 Teacher unlock</h2>
+  <p class="muted" style="margin:0 0 6px;font-size:14px">Opens every mission on this device until the page is reloaded. It doesn't award the completion code.</p>
+  <input class="field" id="teacherField" type="password" inputmode="numeric" autocomplete="off" placeholder="Passcode">
+  <div id="teacherErr" style="color:var(--cpu);font-size:.85rem;min-height:1.1em;margin-top:6px"></div>
+  <div class="row2"><button class="btn secondary" id="teacherCancel">Cancel</button><button class="btn" id="teacherGo">Unlock</button></div>
+</div></div>
+
 <!-- reflection questions -->
 <div class="modal" id="refModal"><div class="modalbox refbox">
   <div class="introhero"><div class="rk">✍️</div><div>
@@ -1214,7 +1223,7 @@ $('#codeBtn').onclick=()=>{ const name=$('#nameField').value.trim();
   if(FORM){ $('#turninBtn').style.display='block'; $('#turninNote').innerHTML='Tapping <b>Turn it in</b> opens your class form with your name, code, and all 9 answers already filled in. Just press <b>Submit</b>. (No form opens? Screenshot this page and tap <b>Copy my answers</b>.) Your initials are in the <b>3rd</b> and <b>6th</b> spots.'; } };
 $('#nameField').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#codeBtn').click(); });
 $('#turninBtn').onclick=()=>{ if(!lastCode||!FORM) return; const url=turnInURL(lastName,lastCode);
-  if(url.length>7800){ alert('Your answers are too long to send automatically. Tap "Copy my answers" and paste them into the form instead.'); window.open(FORM.base,'_blank','noopener'); return; }
+  if(url.length>7800){ $('#turninNote').innerHTML='<b style="color:var(--cpu)">Your answers are too long to send automatically.</b> Tap <b>Copy my answers</b>, then paste them into the form that just opened.'; window.open(FORM.base,'_blank','noopener'); return; }
   window.open(url,'_blank','noopener'); };
 $('#copyAnsBtn').onclick=()=>{ const t=`${lastName} · ${lastCode}\n\n`+answersText();
   const ok=()=>{ $('#copyAnsBtn').textContent='Copied ✓'; setTimeout(()=>$('#copyAnsBtn').textContent='Copy my answers',1400); };
@@ -1230,8 +1239,15 @@ function hideIntro(){ $('#intro').classList.remove('show'); }
 $('#helpBtn').onclick=showIntro;
 $('#startPlay').onclick=hideIntro;
 $('#intro').onclick=e=>{ if(e.target.id==='intro') hideIntro(); };
-$('#teacherBtn').onclick=()=>{ const p=prompt('Teacher passcode (unlocks every mission on this device until reload):');
-  if(p==null) return; if(p.trim()==='1253'){ state.teacher=true; renderTabs(); } else alert('That passcode is not right.'); };
+function closeTeacher(){ $('#teacherModal').classList.remove('show'); }
+$('#teacherBtn').onclick=()=>{ if(state.teacher){ return; }
+  $('#teacherField').value=''; $('#teacherErr').textContent=''; $('#teacherModal').classList.add('show'); setTimeout(()=>$('#teacherField').focus(),50); };
+$('#teacherGo').onclick=()=>{ if($('#teacherField').value.trim()==='1253'){ state.teacher=true; renderTabs(); closeTeacher();
+    $('#teacherBtn').textContent='🔓'; $('#teacherBtn').title='All missions unlocked (until reload)'; }
+  else { $('#teacherErr').textContent='That passcode is not right.'; $('#teacherField').select(); } };
+$('#teacherField').addEventListener('keydown',e=>{ if(e.key==='Enter') $('#teacherGo').click(); if(e.key==='Escape') closeTeacher(); });
+$('#teacherCancel').onclick=closeTeacher;
+$('#teacherModal').onclick=e=>{ if(e.target.id==='teacherModal') closeTeacher(); };
 
 state.pi = done(1)?2 : done(0)?1 : 0;
 cv.dataset.part=state.pi+1; renderTabs(); PARTS[state.pi].enter();
