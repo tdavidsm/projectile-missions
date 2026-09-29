@@ -68,8 +68,9 @@
   .rowbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 
   .dock{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:12px}
-  @media (max-width:980px){ .dock{grid-template-columns:1fr 1fr} .dock .card:last-child{grid-column:1 / -1} }
-  @media (max-width:640px){ .dock{grid-template-columns:1fr} }
+  .dock[data-part="1"]{grid-template-columns:1fr .75fr 1.45fr}
+  @media (max-width:980px){ .dock,.dock[data-part="1"]{grid-template-columns:1fr 1fr} .dock .card:last-child{grid-column:1 / -1} }
+  @media (max-width:640px){ .dock,.dock[data-part="1"]{grid-template-columns:1fr} }
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
   .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 8px}
   .goal{font-size:14px;line-height:1.5}
@@ -115,11 +116,13 @@
   table.log th,table.log td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
   table.log th{color:var(--muted);font-weight:600;font-size:12px}
   table.log td:first-child,table.log th:first-child{text-align:left}
+  table.log.nowrap td{white-space:nowrap}
   .logscroll{max-height:250px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
     border:1px solid var(--line);border-radius:10px}
   .logscroll table.log thead th{position:sticky;top:0;background:var(--panel2);z-index:1}
   .logscroll table.log tr:last-child td{border-bottom:none}
   .logcount{font-size:11px;color:var(--muted);margin-top:5px}
+  table.log tr.rnd td{text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);background:#0c1428}
   .ok{color:#8ff0b6;font-weight:700}
   .no{color:#ff8b9b;font-weight:700}
   .emptylog{color:var(--muted);font-size:13px;padding:4px 2px}
@@ -308,6 +311,12 @@ function showPanel(html,btns,opts={}){
   panel.scrollTop=0;
 }
 function hidePanel(){ panel.className='panel'; }
+/* scrolling trial logs: show/hide, count line, and jump to the newest row when one is added */
+const logLens={};
+function finishLog(k,len,noun){ const box=$('#'+k+'Scroll'); if(!box) return;
+  box.style.display=len?'block':'none'; $('#'+k+'Empty').style.display=len?'none':'block';
+  $('#'+k+'Count').textContent=len>6?`${len} ${noun} · scroll down for earlier ones`:'';
+  if(len!==logLens[k]){ logLens[k]=len; box.scrollTop=0; } }
 function setStageBtn(label,fn){ const b=$('#stageBtn'); if(!label){ b.className='btn stagebtn'; return; }
   b.textContent=label; b.onclick=fn; b.className='btn stagebtn show'; }
 function mark(i){ if(!state.won[i]){ state.won[i]=true; save(); } renderTabs(); }
@@ -452,7 +461,7 @@ const P1={
       <div class="status" id="p1Status"></div>
       <div class="hintline">Or tap anywhere on the scene, or press <b>Space</b>. The floor ruler shows how far the robot is from the drop line.</div></div>
     <div class="card"><h2>Drop log</h2>
-      <div class="logscroll" id="p1Scroll"><table class="log"><thead><tr><th>#</th><th>Height</th><th>Robot distance at release</th><th>Needed</th><th>Result</th></tr></thead><tbody id="p1Log"></tbody></table></div>
+      <div class="logscroll" id="p1Scroll"><table class="log nowrap"><thead><tr><th>#</th><th>Height</th><th>Fall time</th><th>Robot distance at release</th><th>Needed</th><th>Result</th></tr></thead><tbody id="p1Log"></tbody></table></div>
       <div class="emptylog" id="p1Empty">Your drops will show up here.</div>
       <div class="logcount" id="p1Count"></div></div>`;
     $('#p1Drop').addEventListener('pointerdown',e=>{ e.preventDefault(); this.drop(); });
@@ -465,13 +474,10 @@ const P1={
     $('#p1Status').textContent={brief:'',climb:'Climbing to the shelf…',rolling:'Here comes the robot. Let go at the right moment!',
       falling:'Falling…',after:'',result:''}[s.phase]||'';
     const tb=$('#p1Log'); tb.innerHTML='';
-    $('#p1Empty').style.display=s.log.length?'none':'block';
     s.log.map((e,n)=>[e,n+1]).reverse().forEach(([e,n])=>{ const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${n}</td><td>${e.H} m</td><td>${e.lead==null?'no drop':f1(e.lead)+' m'}</td><td>${f1(e.need)} m</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ caught':e.kind==='early'?'✗ early':e.kind==='late'?'✗ late':'✗ missed'}</td>`;
+      tr.innerHTML=`<td>${n}</td><td>${e.H} m</td><td>${f2(Math.sqrt(2*e.H/G))} s</td><td>${e.lead==null?'no drop':f1(e.lead)+' m'}</td><td>${f1(e.need)} m</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ caught':e.kind==='early'?'✗ early':e.kind==='late'?'✗ late':'✗ missed'}</td>`;
       tb.appendChild(tr); });
-    $('#p1Scroll').style.display=s.log.length?'block':'none';
-    $('#p1Count').textContent=s.log.length>6?`${s.log.length} drops · scroll for earlier trials`:'';
-    if(s.log.length!==this.shownLen){ this.shownLen=s.log.length; $('#p1Scroll').scrollTop=0; }
+    finishLog('p1',s.log.length,'drops');
   },
 
   /* ----- drawing ----- */
@@ -680,8 +686,9 @@ const P2={
       <button class="btn big" id="p2Fire" style="background:#ff8a3d">🔥 FIRE!</button>
       <div class="status" id="p2Status"></div></div>
     <div class="card"><h2>Cannon log</h2>
-      <table class="log"><thead><tr><th>Height</th><th>Shark</th><th>Cannon</th><th>Landed</th><th>Result</th></tr></thead><tbody id="p2Log"></tbody></table>
-      <div class="emptylog" id="p2Empty">Your shots will show up here.</div></div>`;
+      <div class="logscroll" id="p2Scroll"><table class="log"><thead><tr><th>#</th><th>Height</th><th>Shark</th><th>Cannon</th><th>Landed</th><th>Result</th></tr></thead><tbody id="p2Log"></tbody></table></div>
+      <div class="emptylog" id="p2Empty">Your shots will show up here.</div>
+      <div class="logcount" id="p2Count"></div></div>`;
     const stp=d=>{ const s=this.s; if(s.phase!=='aim') return; s.vc=clamp(Math.round((s.vc+d*this.STEP)*2)/2,0,this.VMAX); this.refresh(); };
     holdBtn($('#p2Dn'),()=>stp(-1)); holdBtn($('#p2Up'),()=>stp(1));
     $('#p2Fire').onclick=()=>this.fire();
@@ -695,10 +702,11 @@ const P2={
     $('#p2Dn').disabled=!aim||s.vc<=0; $('#p2Up').disabled=!aim||s.vc>=this.VMAX; $('#p2Fire').disabled=!aim;
     $('#p2Streak').innerHTML=pipsHTML(Math.min(s.streak,this.NEED),this.NEED)+`<span class="mtxt">Streak ${s.streak} / ${this.NEED}</span>`;
     $('#p2Status').textContent={aim:'Set the speed, then fire.',approach:'Here comes the shark…',flight:'Cannonball away!'}[s.phase]||'';
-    const tb=$('#p2Log'); tb.innerHTML=''; $('#p2Empty').style.display=s.log.length?'none':'block';
-    s.log.slice(-7).reverse().forEach(e=>{ const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${e.H} m</td><td>${f1(e.vs)}</td><td>${f1(e.vc)}</td><td>${Math.abs(e.miss)<0.05?'on it':f1(Math.abs(e.miss))+' m '+(e.miss<0?'behind':'ahead')}</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ hit':'✗ miss'}</td>`;
+    const tb=$('#p2Log'); tb.innerHTML='';
+    s.log.map((e,n)=>[e,n+1]).reverse().forEach(([e,n])=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${n}</td><td>${e.H} m</td><td>${f1(e.vs)}</td><td>${f1(e.vc)}</td><td>${Math.abs(e.miss)<0.05?'on it':f1(Math.abs(e.miss))+' m '+(e.miss<0?'behind':'ahead')}</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ hit':'✗ miss'}</td>`;
       tb.appendChild(tr); });
+    finishLog('p2',s.log.length,'shots');
   },
 
   draw(){
@@ -894,7 +902,7 @@ const P3={
       else { const d=(A.x-opp.x)*this.dir(me); res = d<0 ? `${f1(-d)} m short` : `${f1(d)} m long`; }
       s.pops.push({x:clamp(A.x,-8,s.d0+5),y:Math.max(A.y,0)+1.5,text:res,color:'#c8d4f0',t:0});
     }
-    s.log.push({n:s.shotNo,who:A.owner,ang:A.ang,pow:A.pow,res,dmg,hit:kind==='hit'});
+    s.log.push({n:s.shotNo,round:s.round,youTower:s.youTower,who:A.owner,ang:A.ang,pow:A.pow,res,dmg,hit:kind==='hit'});
     s.trails.push({owner:A.owner,pts:A.trail});
     const mine=s.trails.filter(t=>t.owner==='you').slice(-3), theirs=s.trails.filter(t=>t.owner==='cpu').slice(-2);
     s.trails=[...mine,...theirs];
@@ -985,8 +993,9 @@ const P3={
       <button class="btn big" id="p3Shoot">🏹 SHOOT</button>
       <div class="status" id="p3Status"></div></div>
     <div class="card"><h2>Duel log (this match)</h2>
-      <table class="log"><thead><tr><th>#</th><th>Who</th><th>Angle</th><th>Speed</th><th>Result</th><th>Dmg</th></tr></thead><tbody id="p3Log"></tbody></table>
-      <div class="emptylog" id="p3Empty">Every arrow will show up here.</div></div>`;
+      <div class="logscroll" id="p3Scroll"><table class="log"><thead><tr><th>#</th><th>Who</th><th>Angle</th><th>Speed</th><th>Result</th><th>Dmg</th></tr></thead><tbody id="p3Log"></tbody></table></div>
+      <div class="emptylog" id="p3Empty">Every arrow will show up here.</div>
+      <div class="logcount" id="p3Count"></div></div>`;
     const can=()=>this.s.phase==='aim'&&this.s.turn==='you';
     holdBtn($('#p3AD'),()=>{ if(can()){ this.s.aim.ang=clamp(this.s.aim.ang-1,-80,89); this.refreshLive(); } });
     holdBtn($('#p3AU'),()=>{ if(can()){ this.s.aim.ang=clamp(this.s.aim.ang+1,-80,89); this.refreshLive(); } });
@@ -1016,10 +1025,15 @@ const P3={
     const st={ready:'',aim:s.youTower?'Your turn: aim and shoot.':'Your turn: walk (optional), then aim and shoot.',
       cpu:s.cpuStage==='walk'?'Computer is walking…':'Computer is aiming…',flight:'Arrow in flight…',settle:'',roundover:''}[s.phase]||'';
     $('#p3Status').textContent=st;
-    const tb=$('#p3Log'); tb.innerHTML=''; $('#p3Empty').style.display=s.log.length?'none':'block';
-    s.log.slice(-8).reverse().forEach(e=>{ const tr=document.createElement('tr');
+    const tb=$('#p3Log'); tb.innerHTML='';
+    const rev=s.log.slice().reverse();
+    rev.forEach((e,i)=>{
+      if(i===0||rev[i-1].round!==e.round){ const hr=document.createElement('tr'); hr.className='rnd';
+        hr.innerHTML=`<td colspan="6">Round ${e.round} · you on the ${e.youTower?'tower':'ground'}</td>`; tb.appendChild(hr); }
+      const tr=document.createElement('tr');
       tr.innerHTML=`<td>${e.n}</td><td style="color:${e.who==='you'?'#ffd166':'#ff8b9b'}">${e.who==='you'?'You':'CPU'}</td><td>${Math.round(e.ang)}°</td><td>${f1(e.pow)}</td><td class="${e.hit?'ok':''}" style="${e.hit?'':'color:var(--muted)'}">${e.res}</td><td>${e.dmg||''}</td>`;
       tb.appendChild(tr); });
+    finishLog('p3',s.log.length,'arrows');
     this.refreshLive();
   },
 
@@ -1120,7 +1134,7 @@ function renderTabs(){
   const m=$('#medals'); m.innerHTML='';
   state.won.forEach((w,i)=>{ const d=document.createElement('div'); d.className='medal'+(done(i)?' won':''); d.textContent=done(i)?'★':w?'✍':(i+1); m.appendChild(d); });
 }
-function switchPart(i){ if(!unlocked(i)) return; hidePanel(); setStageBtn(null); state.pi=i; cv.dataset.part=i+1; renderTabs(); PARTS[i].enter(); }
+function switchPart(i){ if(!unlocked(i)) return; hidePanel(); setStageBtn(null); state.pi=i; cv.dataset.part=i+1; $('#dock').dataset.part=i+1; renderTabs(); PARTS[i].enter(); }
 
 const cur=()=>PARTS[state.pi];
 function ptr(type,e){ const r=cv.getBoundingClientRect(); cur().pointer(type,e.clientX-r.left,e.clientY-r.top); }
@@ -1287,7 +1301,7 @@ $('#teacherCancel').onclick=closeTeacher;
 $('#teacherModal').onclick=e=>{ if(e.target.id==='teacherModal') closeTeacher(); };
 
 state.pi = done(1)?2 : done(0)?1 : 0;
-cv.dataset.part=state.pi+1; renderTabs(); PARTS[state.pi].enter();
+cv.dataset.part=state.pi+1; $('#dock').dataset.part=state.pi+1; renderTabs(); PARTS[state.pi].enter();
 requestAnimationFrame(frame);
 showIntro();   // instructions appear automatically on a fresh load
 window.__pm={state,P1,P2,P3,switchPart,makeCode,initials,checkAnswer,REFLECT,openReflection,turnInURL,answersText};
