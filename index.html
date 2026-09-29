@@ -322,12 +322,14 @@ const P1={
   key:'drop', name:'Warehouse Drop', sub:'When do you let go?',
   LEVELS:[2,4,6,8,10,12,14,16], V:3.0, DECK:0.45, PLAT:1.6, BOX:0.7, NEED:5, SPAWN:-13, LADDER:2.9, STAND:0.95, HOLD:0.85,
   s:null,
-  // First five shelves: all different, always including one height and its double (e.g. 4 m and 8 m), shuffled.
+  // First five shelves: all different, and always including a height & its double (e.g. 4 m, 8 m) AND a height & 4x it
+  // (2 m & 8 m or 4 m & 16 m), so students can compare fall times in their log. Random sets are drawn until one qualifies.
   planFive(){
-    const L=this.LEVELS, a=pick(L.filter(h=>L.includes(2*h))), five=[a,2*a];
-    while(five.length<5) five.push(pick(L.filter(h=>!five.includes(h))));
-    for(let i=five.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [five[i],five[j]]=[five[j],five[i]]; }
-    return five;
+    const has=(f,k)=>f.some(h=>f.includes(k*h));
+    for(let tries=0;tries<500;tries++){ const f=[...this.LEVELS];
+      for(let i=f.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [f[i],f[j]]=[f[j],f[i]]; }
+      const five=f.slice(0,5); if(has(five,2)&&has(five,4)) return five; }
+    return [8,2,12,4,16];
   },
   plankY(h){ return this.DECK+h-this.HOLD; },   // box bottom (held at waist) sits exactly h above the robot deck
   enter(){
