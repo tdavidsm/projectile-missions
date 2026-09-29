@@ -115,6 +115,11 @@
   table.log th,table.log td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
   table.log th{color:var(--muted);font-weight:600;font-size:12px}
   table.log td:first-child,table.log th:first-child{text-align:left}
+  .logscroll{max-height:250px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    border:1px solid var(--line);border-radius:10px}
+  .logscroll table.log thead th{position:sticky;top:0;background:var(--panel2);z-index:1}
+  .logscroll table.log tr:last-child td{border-bottom:none}
+  .logcount{font-size:11px;color:var(--muted);margin-top:5px}
   .ok{color:#8ff0b6;font-weight:700}
   .no{color:#ff8b9b;font-weight:700}
   .emptylog{color:var(--muted);font-size:13px;padding:4px 2px}
@@ -447,8 +452,9 @@ const P1={
       <div class="status" id="p1Status"></div>
       <div class="hintline">Or tap anywhere on the scene, or press <b>Space</b>. The floor ruler shows how far the robot is from the drop line.</div></div>
     <div class="card"><h2>Drop log</h2>
-      <table class="log"><thead><tr><th>Height</th><th>Robot distance at release</th><th>Needed</th><th>Result</th></tr></thead><tbody id="p1Log"></tbody></table>
-      <div class="emptylog" id="p1Empty">Your drops will show up here.</div></div>`;
+      <div class="logscroll" id="p1Scroll"><table class="log"><thead><tr><th>#</th><th>Height</th><th>Robot distance at release</th><th>Needed</th><th>Result</th></tr></thead><tbody id="p1Log"></tbody></table></div>
+      <div class="emptylog" id="p1Empty">Your drops will show up here.</div>
+      <div class="logcount" id="p1Count"></div></div>`;
     $('#p1Drop').addEventListener('pointerdown',e=>{ e.preventDefault(); this.drop(); });
   },
   refresh(){
@@ -460,9 +466,12 @@ const P1={
       falling:'Falling…',after:'',result:''}[s.phase]||'';
     const tb=$('#p1Log'); tb.innerHTML='';
     $('#p1Empty').style.display=s.log.length?'none':'block';
-    s.log.slice(-7).reverse().forEach(e=>{ const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${e.H} m</td><td>${e.lead==null?'no drop':f1(e.lead)+' m'}</td><td>${f1(e.need)} m</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ caught':e.kind==='early'?'✗ early':e.kind==='late'?'✗ late':'✗ missed'}</td>`;
+    s.log.map((e,n)=>[e,n+1]).reverse().forEach(([e,n])=>{ const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${n}</td><td>${e.H} m</td><td>${e.lead==null?'no drop':f1(e.lead)+' m'}</td><td>${f1(e.need)} m</td><td class="${e.ok?'ok':'no'}">${e.ok?'✓ caught':e.kind==='early'?'✗ early':e.kind==='late'?'✗ late':'✗ missed'}</td>`;
       tb.appendChild(tr); });
+    $('#p1Scroll').style.display=s.log.length?'block':'none';
+    $('#p1Count').textContent=s.log.length>6?`${s.log.length} drops · scroll for earlier trials`:'';
+    if(s.log.length!==this.shownLen){ this.shownLen=s.log.length; $('#p1Scroll').scrollTop=0; }
   },
 
   /* ----- drawing ----- */
