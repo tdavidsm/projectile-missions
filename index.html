@@ -49,7 +49,8 @@
   .stagebtn{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:none;padding:12px 26px;font-size:18px;
     box-shadow:0 6px 18px #0008}
   .stagebtn.show{display:block}
-  @media (max-width:640px){ canvas#stage{height:clamp(240px,72vw,420px)} .tab{flex:1 1 90px;padding:6px 8px} .tab .eq{display:none} .tab .nm{font-size:13px} }
+  canvas#stage[data-part="1"]{height:clamp(320px,66vh,660px)}
+  @media (max-width:640px){ canvas#stage{height:clamp(240px,72vw,420px)} canvas#stage[data-part="1"]{height:clamp(280px,92vw,500px)} .tab{flex:1 1 90px;padding:6px 8px} .tab .eq{display:none} .tab .nm{font-size:13px} }
   .panel{position:absolute;top:12px;right:12px;width:min(440px,calc(100% - 24px));max-height:calc(100% - 24px);
     overflow:auto;background:rgba(10,17,36,.95);border:1px solid var(--line);border-radius:14px;padding:13px 15px;
     display:none;box-shadow:0 10px 30px #0009}
@@ -475,7 +476,7 @@ const P1={
     g.fillStyle='#e8b923'; g.fillRect(0,floorY+1,w,2);
     g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=1;
     for(let m=0;m<=16;m++){ const px=X(-m); if(px<0) break; line(px,floorY,px,floorY+(m%2===0?9:5));
-      if(m%(sc*2<34?4:2)===0) txt(m===0?'0':m+' m',px,floorY+17,{size:10,color:'#9fb0d6',align:'center'}); }
+      if(m%(sc>=34?1:sc*2<34?4:2)===0) txt(m===0?'0':m+' m',px,floorY+17,{size:sc>=26?12:10,color:'#b8c6e6',align:'center'}); }
     // rack
     const rackL=0.4, topY=this.plankY(16)+2.2;
     g.fillStyle='#d9692a';
@@ -1073,7 +1074,7 @@ function renderTabs(){
   const m=$('#medals'); m.innerHTML='';
   state.won.forEach((w,i)=>{ const d=document.createElement('div'); d.className='medal'+(done(i)?' won':''); d.textContent=done(i)?'★':w?'✍':(i+1); m.appendChild(d); });
 }
-function switchPart(i){ if(!unlocked(i)) return; hidePanel(); setStageBtn(null); state.pi=i; renderTabs(); PARTS[i].enter(); }
+function switchPart(i){ if(!unlocked(i)) return; hidePanel(); setStageBtn(null); state.pi=i; cv.dataset.part=i+1; renderTabs(); PARTS[i].enter(); }
 
 const cur=()=>PARTS[state.pi];
 function ptr(type,e){ const r=cv.getBoundingClientRect(); cur().pointer(type,e.clientX-r.left,e.clientY-r.top); }
@@ -1233,7 +1234,7 @@ $('#teacherBtn').onclick=()=>{ const p=prompt('Teacher passcode (unlocks every m
   if(p==null) return; if(p.trim()==='1253'){ state.teacher=true; renderTabs(); } else alert('That passcode is not right.'); };
 
 state.pi = done(1)?2 : done(0)?1 : 0;
-renderTabs(); PARTS[state.pi].enter();
+cv.dataset.part=state.pi+1; renderTabs(); PARTS[state.pi].enter();
 requestAnimationFrame(frame);
 showIntro();   // instructions appear automatically on a fresh load
 window.__pm={state,P1,P2,P3,switchPart,makeCode,initials,checkAnswer,REFLECT,openReflection,turnInURL,answersText};
